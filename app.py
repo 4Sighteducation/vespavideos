@@ -30,7 +30,7 @@ if not RECIPIENT_EMAIL: print("Error: RECIPIENT_EMAIL not found")
 
 def load_data():
     try:
-        with open('VideoPage/data.json', 'r') as f:
+        with open('data.json', 'r') as f:
             data = json.load(f)
     except FileNotFoundError:
         flash("data.json not found. Please create it.", "danger")
@@ -58,7 +58,7 @@ def load_data():
 
 def save_data(data_to_save):
     try:
-        with open('VideoPage/data.json', 'w') as f:
+        with open('data.json', 'w') as f:
             json.dump(data_to_save, f, indent=2)
         return True
     except Exception as e:
@@ -132,7 +132,7 @@ def admin_logout():
 def admin_dashboard():
     _, all_videos = load_data()
     try:
-        with open('VideoPage/data.json', 'r') as f: data = json.load(f)
+        with open('data.json', 'r') as f: data = json.load(f)
         categories_from_file = data.get('categories', {})
     except (FileNotFoundError, json.JSONDecodeError) as e:
         flash(f"Error loading categories for admin: {e}", "danger")
@@ -153,7 +153,7 @@ def add_video():
         flash('Invalid video platform selected.', 'danger')
         return redirect(url_for('admin_dashboard'))
     try:
-        with open('VideoPage/data.json', 'r') as f: data = json.load(f)
+        with open('data.json', 'r') as f: data = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError) as e:
         flash(f'Error loading data.json: {e}', 'danger')
         return redirect(url_for('admin_dashboard'))
@@ -172,7 +172,7 @@ def add_video():
 @login_required
 def delete_video(platform, video_id):
     try:
-        with open('VideoPage/data.json', 'r') as f: data = json.load(f)
+        with open('data.json', 'r') as f: data = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError) as e:
         flash(f'Error loading data.json: {e}', 'danger')
         return redirect(url_for('admin_dashboard'))
@@ -193,7 +193,7 @@ def delete_video(platform, video_id):
 @login_required
 def edit_video(platform, video_id):
     try:
-        with open('VideoPage/data.json', 'r') as f: data = json.load(f)
+        with open('data.json', 'r') as f: data = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError) as e:
         flash(f'Error loading data.json: {e}', 'danger')
         return redirect(url_for('admin_dashboard'))
