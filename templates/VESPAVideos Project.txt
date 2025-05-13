@@ -1,0 +1,71 @@
+Project Handover Document: VESPA Video Marketing Page
+1. Project Background & Aims:
+This project, internally referred to as "VideoPage," is a Flask-based web application designed to serve as a video resource and marketing page for VESPA Academy.
+It evolved from a previous, similar project ("CSCRevision") which was tailored for a specific client (Central South Consortium).
+The primary aim of this "VideoPage" project is to create a scalable, VESPA-branded platform to showcase video content categorized by the core VESPA pillars (Vision, Effort, Systems, Practice, Attitude), alongside a general "Revision Series."
+A key feature is a "Daily Featured Video" that changes each day to highlight different content.
+The page also includes a marketing summary for VESPA Academy and a contact form (which sends an email directly, not using a SendGrid template in this version) for interested schools/users to request more information.
+The application is deployed on Heroku and intended to be accessible via a custom domain (e.g., a subdomain of vespa.academy).
+2. Current Project Structure (Folder: VideoPage):
+app.py:
+Main Flask application file.
+Defines routes: / (main page) and /submit (for form handling).
+Contains data structures for VESPA_CATEGORIES (name, brand color, description, associated videos) and ALL_VIDEOS_DATA (video ID, title, and a list of categories it belongs to).
+Logic to populate categories with their respective videos.
+Logic to select a "Daily Featured Video" based on the current day of the year.
+Passes vespa_categories, featured_video, all_videos_data, and current_year to the index.html template.
+The /submit route handles form data and sends an HTML email directly using SendGrid (API key, sender/recipient emails are stored as Heroku Config Vars).
+templates/index.html:
+Main HTML file using Jinja2 templating.
+Displays VESPA Academy branding (logo, title).
+Includes a prominent marketing summary section with a button to trigger a modal contact form.
+Displays the "Daily Featured Video."
+Loops through vespa_categories to create a section for each category:
+Displays the category name (styled with its specific brand color via an embedded <style> block that uses Jinja).
+Displays the category description.
+Displays a grid of videos belonging to that category.
+Includes Bootstrap modals for the contact form and for displaying a success message upon form submission.
+Footer displays the current year dynamically.
+static/style.css:
+Contains custom CSS for the page.
+Defines VESPA brand colors (--vespa-dark-blue: #23356f;, --vespa-teal: #079baa;) as CSS variables.
+Overrides Bootstrap's primary color with --vespa-teal.
+Includes styles for header, logos, marketing summary box, section headings, video cards, video players (Muse.ai embeds and general iframe), and buttons. !important is used for some button styles to ensure override of Bootstrap defaults.
+static/ (folder): Contains style.css.
+templates/ (folder): Contains index.html.
+requirements.txt: Lists Python dependencies (Flask, SendGrid, python-dotenv, gunicorn, datetime).
+Procfile: Specifies web: gunicorn app:app for Heroku deployment.
+.env (local only, not in Git): For local development, stores SENDGRID_API_KEY, RECIPIENT_EMAIL, SENDER_EMAIL. These are set as Config Vars on Heroku.
+.gitignore: Standard Python/Flask gitignore, excludes .env, venv/, __pycache__/, etc.
+VESPA outliners.txt: (User-provided file) Contains the definitions for VESPA pillar names, colors, and descriptions, which were used to populate VESPA_CATEGORIES in app.py.
+3. Deployment:
+The application is deployed to a Heroku app named vespavideos.
+It uses the gunicorn WSGI server.
+Essential configuration (SendGrid API key, email addresses) is managed via Heroku Config Vars.
+Custom domain setup for a subdomain of vespa.academy has been configured (e.g., videos.vespa.academy or similar, by setting CNAME records pointing to Heroku's DNS targets).
+The Heroku app is on a paid dyno plan to enable Automated Certificate Management (ACM) for SSL on custom domains.
+4. Key Functionalities:
+Display of categorized video content.
+Dynamic "Daily Featured Video."
+Marketing information for VESPA Academy.
+Contact form that triggers an email to a specified VESPA Academy address.
+Success modal after form submission.
+5. Points to Note / Potential Future Enhancements (from previous discussions):
+CSS Styling: There were previous difficulties getting the custom color scheme to apply consistently on the Heroku deployment, possibly due to aggressive caching or CSS specificity issues with Bootstrap. The current style.css uses !important for button colors. Further refinement of CSS might be needed if other elements don't adopt the brand colors as expected.
+Linter Errors in index.html: The embedded <style> block (for dynamic category header colors) in templates/index.html flags HTML/CSS linters. This is a known trade-off for dynamic inline styling with Jinja2 and doesn't affect runtime functionality.
+Scalability of Video Data: Currently, video data is hardcoded in app.py. For a larger number of videos or more frequent updates, moving this to a database or a more manageable data file (e.g., JSON, CSV) would be a good improvement.
+Random Featured Video: The "Daily Featured Video" currently cycles based on the day of the year. True randomness or more complex selection logic would require JavaScript or more advanced server-side logic.
+6. Setup for New Environment/Developer:
+Clone the GitHub repository (https://github.com/4Sighteducation/vespavideos).
+Create a Python virtual environment (e.g., python -m venv venv).
+Activate the virtual environment (source venv/bin/activate or .\venv\Scripts\activate).
+Install dependencies: pip install -r requirements.txt.
+Create a .env file in the project root with local SendGrid API key and email settings.
+Run locally: python app.py.
+For deployment to a new Heroku instance:
+Create a new Heroku app.
+Set Heroku Config Vars for SendGrid.
+Add Heroku remote (heroku git:remote -a new-app-name).
+Push code (git push heroku main).
+Ensure the Heroku app is on a paid dyno for ACM if using custom domains.
+Configure custom domains and their DNS CNAME records.

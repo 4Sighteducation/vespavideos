@@ -27,6 +27,10 @@
             width: auto;
             margin-bottom: 15px;
         }
+        .video-embed-container { position: relative; padding-bottom: 56.25%; /* 16:9 aspect ratio */ height: 0; overflow: hidden; max-width: 100%; background: #000; margin-bottom: 1rem; }
+        .video-embed-container iframe, .video-embed-container .muse-video-player {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        }
     </style>
 </head>
 <body {% if message %}data-show-success-modal="true"{% endif %}>
@@ -53,7 +57,17 @@
         <section class="featured-video-section mb-5 p-4 border rounded bg-white text-center">
             <h3>Today's Featured Video</h3>
             <h4 class="card-title mt-2">{{ featured_video.title }}</h4>
-            <div class="muse-video-player mx-auto mt-2" data-video="{{ featured_video.id }}" style="max-width: 576px;"></div>
+            <div class="video-embed-container mx-auto mt-2" style="max-width: 576px;">
+                {% if featured_video.platform == 'muse' %}
+                    <div class="muse-video-player" data-video="{{ featured_video.video_id }}"></div>
+                {% elif featured_video.platform == 'youtube' %}
+                    <iframe src="https://www.youtube.com/embed/{{ featured_video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                {% elif featured_video.platform == 'vimeo' %}
+                    <iframe src="https://player.vimeo.com/video/{{ featured_video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                {% else %}
+                    <p>Unsupported video platform for: {{ featured_video.title }}</p>
+                {% endif %}
+            </div>
         </section>
         {% endif %}
 
@@ -69,7 +83,17 @@
                     {% for video in category.videos %}
                     <div class="col">
                         <div class="card h-100">
-                            <div class="muse-video-player" data-video="{{ video.id }}" data-width="100%"></div>
+                            <div class="video-embed-container">
+                                {% if video.platform == 'muse' %}
+                                    <div class="muse-video-player" data-video="{{ video.video_id }}"></div>
+                                {% elif video.platform == 'youtube' %}
+                                    <iframe src="https://www.youtube.com/embed/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                {% elif video.platform == 'vimeo' %}
+                                    <iframe src="https://player.vimeo.com/video/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                {% else %}
+                                    <p class="p-2 text-danger">Cannot display: {{ video.title }} (Unsupported Platform)</p>
+                                {% endif %}
+                            </div>
                             <div class="card-body">
                                 <h5 class="card-title">{{ video.title }}</h5>
                             </div>

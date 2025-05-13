@@ -1,0 +1,46 @@
+{
+  "categories": {
+    "VISION": {
+      "name": "VISION",
+      "color": "#ff8f00",
+      "description": "Connecting present work to future goals. Developing clear aspirations and purpose, building future-mindedness, and empowering students to take control."
+    },
+    "EFFORT": {
+      "name": "EFFORT",
+      "color": "#86b4f0",
+      "description": "Challenging the myth of effortless success. Focusing on efficient effort, quality and quantity of sustained hard work, and building productive study tools."
+    },
+    "SYSTEMS": {
+      "name": "SYSTEMS",
+      "color": "#72cb44",
+      "description": "Organization as the foundation of success. Structuring information, time management, addressing underperformance through project management, and developing effective habits."
+    },
+    "PRACTICE": {
+      "name": "PRACTICE",
+      "color": "#7f31a4",
+      "description": "Making deliberate practice the cornerstone of improvement. Focusing on *how* to study effectively, implementing research-backed methods, and transforming effort into progress."
+    },
+    "ATTITUDE": {
+      "name": "ATTITUDE",
+      "color": "#f032e6",
+      "description": "Building psychological resources for academic resilience. Developing confidence, emotional control, academic buoyancy, and cultivating a growth mindset."
+    },
+    "REVISION_SERIES": {
+      "name": "Revision Series - Effective Study Strategies",
+      "color": "#6c757d",
+      "description": "Ten short videos guiding students through effective study and revision practices, from environment to strategies."
+    }
+  },
+  "videos": [
+    {"video_id": "zGDx41A", "platform": "muse", "title": "1. Managing your Physical Environment", "category_keys": ["REVISION_SERIES", "SYSTEMS"]},
+    {"video_id": "avfERD2", "platform": "muse", "title": "2. Managing your Digital Environment", "category_keys": ["REVISION_SERIES", "SYSTEMS"]},
+    {"video_id": "gf4fhoE", "platform": "muse", "title": "3. Will vs Skill - Strategic Study", "category_keys": ["REVISION_SERIES", "EFFORT", "ATTITUDE"]},
+    {"video_id": "oG2PRXN", "platform": "muse", "title": "4. Sticky Timetables", "category_keys": ["REVISION_SERIES", "PRACTICE", "SYSTEMS"]},
+    {"video_id": "QFntkp8", "platform": "muse", "title": "5. 25min Sprints", "category_keys": ["REVISION_SERIES", "PRACTICE", "EFFORT"]},
+    {"video_id": "qjmbeU8", "platform": "muse", "title": "6. Cog P vs Cog A", "category_keys": ["REVISION_SERIES", "PRACTICE"]},
+    {"video_id": "7WDUM16", "platform": "muse", "title": "7. High vs Low Utility", "category_keys": ["REVISION_SERIES", "PRACTICE"]},
+    {"video_id": "4vxb4Z2", "platform": "muse", "title": "8. Test your Future Self", "category_keys": ["REVISION_SERIES", "PRACTICE", "VISION"]},
+    {"video_id": "p4ZN47c", "platform": "muse", "title": "9. Closed Book Notetaking", "category_keys": ["REVISION_SERIES", "PRACTICE"]},
+    {"video_id": "5AA3b27", "platform": "muse", "title": "10. Teach your imaginary Class", "category_keys": ["REVISION_SERIES", "PRACTICE"]}
+  ]
+} 
