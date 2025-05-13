@@ -52,24 +52,32 @@
             </button>
         </section>
         
-        <!-- Daily Featured Video -->
-        {% if featured_video %}
-        <section class="featured-video-section mb-5 p-4 border rounded bg-white text-center">
-            <h3>Today's Featured Video</h3>
-            <h4 class="card-title mt-2">{{ featured_video.title }}</h4>
-            <div class="video-embed-container mx-auto mt-2" style="max-width: 576px;">
-                {% if featured_video.platform == 'muse' %}
-                    <div class="muse-video-player" data-video="{{ featured_video.video_id }}"></div>
-                {% elif featured_video.platform == 'youtube' %}
-                    <iframe src="https://www.youtube.com/embed/{{ featured_video.video_id }}" frameborder="0" allowfullscreen></iframe>
-                {% elif featured_video.platform == 'vimeo' %}
-                    <iframe src="https://player.vimeo.com/video/{{ featured_video.video_id }}" frameborder="0" allowfullscreen></iframe>
-                {% else %}
-                    <p>Unsupported video platform for: {{ featured_video.title }}</p>
-                {% endif %}
-            </div>
-        </section>
-        {% endif %}
+        <!-- Right Column: VESPA Info Video, About Series & Daily Featured Video -->
+        <div class="col-lg-6">
+            <!-- VESPA Portal Info Video -->
+            <section class="vespa-info-video mb-4 p-4 border rounded bg-white">
+                <h4>About the VESPA Academy Portal</h4>
+                <div class="iframe-container mt-2">
+                    <div class="muse-video-player" data-video="Y9ydBfY" data-width="100%"></div>
+                </div>
+            </section>
+
+            <!-- About CSC Series (Moved Up) -->
+            <section class="description mb-4 p-4 border rounded bg-white">
+                 <h2><i class="bi bi-info-circle me-2"></i>About the Revision Series</h2>
+                 <p>Ten short videos guiding students through effective study practices. Covering designing study environments, selecting topics, and applying research-based strategies. Perfect for Key Stage 4-5.</p>
+            </section>
+
+            <!-- Daily Featured Video (Moved Down) -->
+            {% if featured_video %}
+            <section class="featured-video-section p-4 border rounded bg-white">
+                <h4>Today's Featured Revision Video</h4>
+                <h5 class="card-title mt-2">{{ featured_video.title }}</h5>
+                {# Assuming featured_video.id is the correct field for muse player; adjust if it's featured_video.video_id #}
+                <div class="muse-video-player mt-2" data-video="{{ featured_video.video_id if featured_video.video_id else featured_video.id }}" data-width="100%"></div>
+            </section>
+            {% endif %}
+        </div>
 
         <!-- VESPA Categories & Videos -->
         {% for cat_key, category in vespa_categories.items() %}
