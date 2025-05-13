@@ -1,0 +1,4 @@
+Flask>=2.0
+sendgrid>=6.0
+python-dotenv>=0.15
+gunicorn>=20.0 # WSGI server for production 

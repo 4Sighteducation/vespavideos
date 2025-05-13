@@ -1,0 +1,92 @@
+body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    line-height: 1.6;
+    background-color: #f8f9fa;
+    color: #212529;
+}
+
+/* VESPA Brand Colors & Bootstrap Primary Override */
+:root {
+  --vespa-dark-blue: #23356f;
+  --vespa-teal: #079baa;
+  --bs-primary: var(--vespa-teal);
+  --bs-primary-rgb: 7, 155, 170;
+}
+
+header .logo {
+    height: 60px; /* Adjusted for main VESPA page */
+    max-height: 70px;
+    width: auto;
+    margin-bottom: 10px;
+}
+
+header h1 {
+    color: var(--vespa-dark-blue);
+}
+
+.marketing-summary {
+    border: 1px solid #dee2e6;
+}
+
+.marketing-logo-small {
+    max-height: 50px;
+    width: auto;
+    margin-bottom: 15px;
+}
+
+/* Category Section Styling (Static part) */
+.vespa-category-section .card-title {
+    color: var(--vespa-dark-blue);
+}
+
+/* Ensure Muse player is responsive */
+.muse-video-player {
+    position: relative;
+    padding-bottom: 56.25%; /* 16:9 */
+    height: 0;
+    overflow: hidden;
+    max-width: 100%;
+    background: #000;
+}
+.muse-video-player iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* Responsive iframe container for other embedded videos */
+.iframe-container {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    padding-top: 56.25%; /* 16:9 Aspect Ratio */
+}
+.iframe-container iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* Buttons */
+.btn-primary {
+    background-color: var(--bs-primary) !important;
+    border-color: var(--bs-primary) !important;
+    color: #ffffff !important;
+}
+.btn-primary:hover {
+    background-color: #067f8f !important; /* Slightly darker teal */
+    border-color: #067f8f !important;
+}
+
+footer {
+    margin-top: 30px;
+    padding: 20px 0;
+    border-top: 1px solid #dee2e6;
+    color: #6c757d;
+} 
