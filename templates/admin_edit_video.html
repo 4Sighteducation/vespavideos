@@ -52,7 +52,7 @@
                 Update Video Details
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('edit_video', platform=video_to_edit.platform, video_id=video_to_edit.video_id) }}">
+                <form method="POST" action="{{ url_for('edit_video', platform=platform, video_id_on_platform_from_url=video_id) }}">
                     <div class="mb-3">
                         <label for="platform_display" class="form-label">Platform</label>
                         <input type="text" class="form-control" id="platform_display" name="platform_display" value="{{ supported_platforms.get(video_to_edit.platform, video_to_edit.platform) }}" readonly>
