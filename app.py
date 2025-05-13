@@ -89,14 +89,13 @@ def index():
     day_of_year = datetime.date.today().timetuple().tm_yday
     featured_video = ALL_VIDEOS_DATA[(day_of_year - 1) % len(ALL_VIDEOS_DATA)] if ALL_VIDEOS_DATA else None
     
-    # For simplicity, the main marketing page might not use a SendGrid template for form submission by default,
-    # or it might use a different one. We'll keep the direct email for now for the form.
     return render_template('index.html', 
                            message=message, 
                            error=error, 
                            featured_video=featured_video, 
                            vespa_categories=VESPA_CATEGORIES,
-                           all_videos_data=ALL_VIDEOS_DATA # Pass all video data for potential other uses
+                           all_videos_data=ALL_VIDEOS_DATA,
+                           current_year=datetime.date.today().year # Add current year
                            )
 
 @app.route('/submit', methods=['POST'])
@@ -108,10 +107,10 @@ def submit_form():
 
     if not SENDGRID_API_KEY or not RECIPIENT_EMAIL or not SENDER_EMAIL:
         print("Server configuration error: Email sending details missing.")
-        return render_template('index.html', error='Sorry, server email config error.', vespa_categories=VESPA_CATEGORIES, featured_video=ALL_VIDEOS_DATA[0] if ALL_VIDEOS_DATA else None) # Basic featured video
+        return render_template('index.html', error='Sorry, server email config error.', vespa_categories=VESPA_CATEGORIES, featured_video=ALL_VIDEOS_DATA[0] if ALL_VIDEOS_DATA else None, current_year=datetime.date.today().year)
 
     if not name or not email or not message_body:
-        return render_template('index.html', error='Please fill in all required fields.', vespa_categories=VESPA_CATEGORIES, featured_video=ALL_VIDEOS_DATA[0] if ALL_VIDEOS_DATA else None)
+        return render_template('index.html', error='Please fill in all required fields.', vespa_categories=VESPA_CATEGORIES, featured_video=ALL_VIDEOS_DATA[0] if ALL_VIDEOS_DATA else None, current_year=datetime.date.today().year)
 
     # Using direct email for this marketing page form, not necessarily a template
     subject = f"New VESPA Academy Enquiry from {name}"
@@ -137,12 +136,12 @@ def submit_form():
         print(f"Enquiry email sent! To: {RECIPIENT_EMAIL}")
         day_of_year = datetime.date.today().timetuple().tm_yday
         featured_video = ALL_VIDEOS_DATA[(day_of_year - 1) % len(ALL_VIDEOS_DATA)] if ALL_VIDEOS_DATA else None
-        return render_template('index.html', message='Thank you! Your message has been sent.', vespa_categories=VESPA_CATEGORIES, featured_video=featured_video)
+        return render_template('index.html', message='Thank you! Your message has been sent.', vespa_categories=VESPA_CATEGORIES, featured_video=featured_video, current_year=datetime.date.today().year)
     except Exception as e:
         print(f"Error sending enquiry email: {e}")
         day_of_year = datetime.date.today().timetuple().tm_yday
         featured_video = ALL_VIDEOS_DATA[(day_of_year - 1) % len(ALL_VIDEOS_DATA)] if ALL_VIDEOS_DATA else None
-        return render_template('index.html', error='Sorry, an error occurred sending your message.', vespa_categories=VESPA_CATEGORIES, featured_video=featured_video)
+        return render_template('index.html', error='Sorry, an error occurred sending your message.', vespa_categories=VESPA_CATEGORIES, featured_video=featured_video, current_year=datetime.date.today().year)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True) 
