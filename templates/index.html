@@ -38,25 +38,46 @@
         <header class="text-center mb-5">
             <img src="https://www.vespa.academy/assets/images/full-trimmed-transparent-customcolor-1-832x947.png" alt="VESPA Academy Logo" class="logo" style="max-height: 70px;"> <!-- Only VESPA Logo -->
             <h1 class="mt-3">VESPA Academy Video Resources</h1>
-            <p class="lead">Empowering Students Through Non-Cognitive Skills Development</p>
+            <!-- <p class="lead">Empowering Students Through Non-Cognitive Skills Development</p> --> <!-- Old subtitle removed -->
         </header>
 
-        <!-- Marketing & Form Trigger Section - NOW INCLUDES THE MAIN MARKETING VIDEO -->
-        <section class="marketing-summary mb-5 p-4 bg-light rounded border text-center">
-            <img src="https://www.vespa.academy/assets/images/full-trimmed-transparent-customcolor-1-832x947.png" alt="VESPA Academy Logo" class="marketing-logo-small">
-            <h2>Transform Student Success with VESPA Academy</h2>
-            <p class="lead">Our coaching portal, built on the proven VESPA framework (Vision, Effort, Systems, Practice, Attitude), empowers students in over 600 schools worldwide.</p>
-            <p>Discover how our quick psychometric assessments, personalized reports, and targeted intervention activities can revolutionize learning at your institution.</p>
-            <button type="button" class="btn btn-primary btn-lg mt-3" data-bs-toggle="modal" data-bs-target="#contactModal">
-              Request More Information
-            </button>
+        <!-- Marketing & Form Trigger Section - UPDATED CONTENT & VIDEO STYLING -->
+        <section class="marketing-summary mb-5 p-4 bg-light rounded border">
+            <div class="text-center">
+                <img src="https://www.vespa.academy/assets/images/full-trimmed-transparent-customcolor-1-832x947.png" alt="VESPA Academy Logo" class="marketing-logo-small">
+                <h2>Transform Student Success with VESPA Academy</h2>
+                <p class="lead px-md-5">Go beyond academic content and develop the crucial non-cognitive skills that predict success. Built on the proven VESPA framework (Vision, Effort, Systems, Practice, Attitude).</p>
+            </div>
+
+            <hr class="my-4">
+
+            <div class="row">
+                <div class="col-md-6 mb-3 mb-md-0">
+                    <h4><i class="bi bi-list-check text-primary me-2"></i>How it Works:</h4>
+                    <p>Students take a quick assessment, receive personalized reports, and engage with targeted activities. Teachers gain valuable insights via a dashboard for personalized coaching.</p>
+                </div>
+                <div class="col-md-6">
+                    <h4><i class="bi bi-graph-up text-primary me-2"></i>Proven Impact: <i class="bi bi-arrow-down-circle d-none d-md-inline"></i></h4> 
+                    <p>Our approach delivers measurable results. A rigorous study showed GCSE Maths resit students using VESPA interventions improved grades by <strong>more than double</strong> the rate of the control group.</p>
+                </div>
+            </div>
+
+            <hr class="my-4">
+
+            <div class="text-center">
+                <p class="lead mb-3">Interested in boosting learner independence?</p>
+                <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#contactModal">
+                  Request More Information
+                </button>
+            </div>
 
             {% if marketing_promo_video %}
-            <div class="main-marketing-video-embed mt-4"> 
+            <div class="main-marketing-video-embed mt-4 text-center">
                 {% if marketing_promo_video.title %}
                 <h4 class="mb-3">{{ marketing_promo_video.title }}</h4>
                 {% endif %}
-                <div class="video-embed-container mx-auto" style="max-width: 700px; background-color: #000;">
+                <!-- Adjusted video container for better responsiveness and smaller size -->
+                <div class="video-embed-container mx-auto" style="max-width: 600px; /* Smaller max-width */ background-color: #000;">
                     {% if marketing_promo_video.platform == 'muse' %}
                         <div class="muse-video-player" data-video="{{ marketing_promo_video.video_id }}"></div>
                     {% elif marketing_promo_video.platform == 'youtube' %}

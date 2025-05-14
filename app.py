@@ -331,7 +331,7 @@ def add_video():
     platform = request.form.get('platform')
     title = request.form.get('title')
     category_keys_from_form = request.form.getlist('category_keys')
-    series_ids_from_form = request.form.getlist('series_ids') # Get selected series IDs
+    series_ids_from_form = request.form.getlist('series_ids')
 
     if not all([video_id_on_platform, title, platform]):
         flash('Video ID, Platform, and Title are required.', 'danger')
@@ -342,6 +342,9 @@ def add_video():
         return redirect(url_for('admin_dashboard'))
 
     conn = None
+    video_db_id_to_use = None
+    was_existing_video = False
+
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -351,53 +354,67 @@ def add_video():
             "SELECT id FROM videos WHERE platform = %s AND video_id_on_platform = %s",
             (platform, video_id_on_platform)
         )
-        existing_video = cur.fetchone()
-        if existing_video:
-            flash(f'Video with ID \'{video_id_on_platform}\' on platform \'{SUPPORTED_PLATFORMS.get(platform, platform)}\' already exists.', 'warning')
-            return redirect(url_for('admin_dashboard'))
+        existing_video_row = cur.fetchone()
 
-        # Insert new video and get its database ID
-        cur.execute(
-            "INSERT INTO videos (platform, video_id_on_platform, title) VALUES (%s, %s, %s) RETURNING id",
-            (platform, video_id_on_platform, title)
-        )
-        new_video_db_id = cur.fetchone()[0]
+        if existing_video_row:
+            video_db_id_to_use = existing_video_row[0]
+            was_existing_video = True
+            # If it's an existing video, we might want to update its title too if a new one is provided
+            # For now, the simplest approach is to update assignments. Title update for existing can be a future enhancement here if needed.
+            # Or, direct users to the "Edit Video" page for title changes of existing videos.
+            # We will clear its old assignments first before adding new ones.
+            cur.execute("DELETE FROM video_category_assignments WHERE video_db_id = %s", (video_db_id_to_use,))
+            cur.execute("DELETE FROM video_series_assignments WHERE video_db_id = %s", (video_db_id_to_use,))
+            # flash(f'Video '{title}' already exists. Updating its assignments.', 'info') # Optional info flash
+        else:
+            # Insert new video and get its database ID
+            cur.execute(
+                "INSERT INTO videos (platform, video_id_on_platform, title) VALUES (%s, %s, %s) RETURNING id",
+                (platform, video_id_on_platform, title)
+            )
+            new_video_db_id_row = cur.fetchone()
+            if new_video_db_id_row:
+                video_db_id_to_use = new_video_db_id_row[0]
+            else:
+                # Should not happen if INSERT was successful and RETURNING id was used, but as a safeguard:
+                conn.rollback()
+                flash('Error creating new video record.', 'danger')
+                return redirect(url_for('admin_dashboard'))
 
         # Assign categories
-        if new_video_db_id and category_keys_from_form:
+        if video_db_id_to_use and category_keys_from_form:
             for cat_key in category_keys_from_form:
                 try:
                     cur.execute(
                         "INSERT INTO video_category_assignments (video_db_id, category_db_key) VALUES (%s, %s)",
-                        (new_video_db_id, cat_key)
+                        (video_db_id_to_use, cat_key)
                     )
                 except psycopg2.errors.ForeignKeyViolation:
                     flash(f"Warning: Could not assign category '{cat_key}' to video '{title}'. Category might not exist.", "warning")
-                    print(f"ForeignKeyViolation: Could not assign category '{cat_key}' to video '{title}' (DB ID: {new_video_db_id})")
-                except psycopg2.errors.UniqueViolation:
-                    flash(f"Warning: Video '{title}' already assigned to category '{cat_key}'.", "warning")
-                    print(f"UniqueViolation: Video '{title}' (DB ID: {new_video_db_id}) already assigned to category '{cat_key}'.")
+                except psycopg2.errors.UniqueViolation: # Should not happen if we delete first for existing videos
+                    flash(f"Warning: Video '{title}' already assigned to category '{cat_key}'. (This shouldn't happen if logic is correct)", "warning")
         
         # Assign series
-        if new_video_db_id and series_ids_from_form:
-            for series_id in series_ids_from_form:
+        if video_db_id_to_use and series_ids_from_form:
+            for series_id_str in series_ids_from_form: # Renamed to avoid conflict with outer scope if any
                 try:
+                    series_id = int(series_id_str)
                     cur.execute(
                         "INSERT INTO video_series_assignments (video_db_id, series_db_id) VALUES (%s, %s)",
-                        (new_video_db_id, int(series_id)) # Ensure series_id is int
+                        (video_db_id_to_use, series_id)
                     )
                 except psycopg2.errors.ForeignKeyViolation:
                     flash(f"Warning: Could not assign series ID '{series_id}' to video '{title}'. Series might not exist.", "warning")
-                    print(f"ForeignKeyViolation: Could not assign series ID '{series_id}' to video '{title}' (DB ID: {new_video_db_id})")
-                except psycopg2.errors.UniqueViolation:
-                    flash(f"Warning: Video '{title}' already assigned to series ID '{series_id}'.", "warning")
-                    print(f"UniqueViolation: Video '{title}' (DB ID: {new_video_db_id}) already assigned to series ID '{series_id}'.")
+                except psycopg2.errors.UniqueViolation: # Should not happen if we delete first
+                    flash(f"Warning: Video '{title}' already assigned to series ID '{series_id}'. (This shouldn't happen)", "warning")
                 except ValueError:
-                    flash(f"Warning: Invalid series ID '{series_id}' provided.", "warning")
-                    print(f"ValueError: edit_video - Invalid series ID '{series_id}' for video DB ID {new_video_db_id}")
+                    flash(f"Warning: Invalid series ID '{series_id_str}' provided.", "warning")
 
         conn.commit()
-        flash(f'Video \'{title}\' added successfully!', 'success')
+        if was_existing_video:
+            flash(f'Assignments for existing video \'{title}\' updated successfully!', 'success')
+        else:
+            flash(f'Video \'{title}\' added and assigned successfully!', 'success')
 
     except (psycopg2.Error, Exception) as e:
         if conn:
