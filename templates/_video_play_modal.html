@@ -1,0 +1,20 @@
+<div class="modal fade" id="videoPlayModal" tabindex="-1" aria-labelledby="videoPlayModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="videoPlayModalLabel">Video Title</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                {# Aspect ratio container for the video #}
+                <div class="video-embed-container-modal" style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; background-color: #000;">
+                    {# Video player will be injected here by JavaScript #}
+                    <div id="videoPlayerContent" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div> 

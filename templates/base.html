@@ -87,6 +87,7 @@
     {# rendering templates that extend this base.html, or modify the modal not to require it #}
     {# if it's not found. For now, index.html passes it. #}
     {% include '_search_modal.html' %} 
+    {% include '_video_play_modal.html' %}
 
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
@@ -95,6 +96,53 @@
     
     {% block scripts_extra %}
     {# Place for additional JS script links or inline JS specific to a page #}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const videoPlayModal = document.getElementById('videoPlayModal');
+            const videoPlayerContent = document.getElementById('videoPlayerContent');
+            const videoPlayModalLabel = document.getElementById('videoPlayModalLabel');
+
+            if (videoPlayModal) {
+                videoPlayModal.addEventListener('show.bs.modal', function (event) {
+                    const button = event.relatedTarget;
+                    const platform = button.getAttribute('data-video-platform');
+                    const videoId = button.getAttribute('data-video-id');
+                    const title = button.getAttribute('data-video-title');
+
+                    if (videoPlayModalLabel) {
+                        videoPlayModalLabel.textContent = title;
+                    }
+
+                    let embedHtml = '';
+                    if (platform === 'muse') {
+                        embedHtml = `<div class="muse-video-player" data-video="${videoId}" data-width="100%" data-height="100%"></div>`;
+                         if (typeof MusePlayer !== 'undefined' && MusePlayer.scan) {
+                            // It's better to call scan after the content is in the DOM and visible
+                        }
+                    } else if (platform === 'youtube') {
+                        embedHtml = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1" frameborder="0" allow="autoplay; fullscreen" allowfullscreen style="width:100%; height:100%;"></iframe>`;
+                    } else if (platform === 'vimeo') {
+                        embedHtml = `<iframe src="https://player.vimeo.com/video/${videoId}?autoplay=1" frameborder="0" allow="autoplay; fullscreen" allowfullscreen style="width:100%; height:100%;"></iframe>`;
+                    } else {
+                        embedHtml = '<p class="text-white text-center p-3">Video format not supported or ID missing.</p>';
+                    }
+                    videoPlayerContent.innerHTML = embedHtml;
+                    
+                    if (platform === 'muse' && typeof MusePlayer !== 'undefined' && MusePlayer.scan) {
+                        // Call scan after HTML is injected. Might need a slight delay if modal is not fully rendered.
+                        setTimeout(() => MusePlayer.scan(), 0);
+                    }
+                });
+
+                videoPlayModal.addEventListener('hidden.bs.modal', function () {
+                    if (videoPlayModalLabel) {
+                        videoPlayModalLabel.textContent = 'Video Title'; 
+                    }
+                    videoPlayerContent.innerHTML = ''; 
+                });
+            }
+        });
+    </script>
     {% endblock %}
 
 </body>
