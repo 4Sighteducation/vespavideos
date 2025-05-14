@@ -53,6 +53,104 @@
         </section>
         <!-- END Page Explainer Section -->
 
+        {# === Start: Manually render Fresh New Vids if it exists, in its new position === #}
+        {% set fresh_vids_key_to_render = 'fresh_new_vids' %} {# Key used in app.py #}
+        {% for cat_key_loop, category_data_loop in vespa_categories %}
+            {% if cat_key_loop == fresh_vids_key_to_render and category_data_loop.videos %}
+                <section id="{{ cat_key_loop|lower }}" class="vespa-category-section mb-5 p-4 bg-white rounded border shadow-sm">
+                    <div class="category-header-{{ cat_key_loop|lower }}" style="border-left: 5px solid {{ category_data_loop.color }}; padding-left: 10px; margin-bottom: 1rem;">
+                        <h2 style="color: {{ category_data_loop.color }};"><i class="bi {{ category_data_loop.icon }} me-2"></i>{{ category_data_loop.name }}</h2>
+                        {% if category_data_loop.description %}<p class="lead">{{ category_data_loop.description }}</p>{% endif %}
+                    </div>
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                        {% for video in category_data_loop.videos[:3] %} {# Show only first 3 videos #}
+                        <div class="col">
+                            <div class="card h-100">
+                                <div class="video-embed-container">
+                                    {% if video.platform == 'muse' %}
+                                        <div class="muse-video-player" data-video="{{ video.video_id }}"></div>
+                                    {% elif video.platform == 'youtube' %}
+                                        <iframe src="https://www.youtube.com/embed/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                    {% elif video.platform == 'vimeo' %}
+                                        <iframe src="https://player.vimeo.com/video/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                    {% else %}
+                                        <p class="p-2 text-danger">Cannot display: {{ video.title }} (Unsupported Platform)</p>
+                                    {% endif %}
+                                </div>
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ video.title }}</h5>
+                                    <div class="d-flex justify-content-between align-items-center mt-2">
+                                        <button class="btn btn-outline-danger btn-sm like-button" data-video-id="{{ video.db_id }}">
+                                            <i class="bi bi-heart"></i> Like
+                                        </button>
+                                        <span class="like-count ms-2" id="like-count-{{ cat_key_loop }}-{{ video.db_id }}">{{ video.likes }} like{{ 's' if video.likes != 1 else '' }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    {% if category_data_loop.videos|length > 3 %}
+                    <div class="text-center mt-4 mb-3">
+                        <button type="button" class="btn btn-lg text-white" 
+                                style="background-color: {{ category_data_loop.color }}; border-color: {{ category_data_loop.color }};" 
+                                data-bs-toggle="modal" data-bs-target="#modal-{{ cat_key_loop }}">
+                            View all videos in {{ category_data_loop.name }}
+                        </button>
+                    </div>
+
+                    <!-- Modal for {{ category_data_loop.name }} -->
+                    <div class="modal fade" id="modal-{{ cat_key_loop }}" tabindex="-1" aria-labelledby="modalLabel-{{ cat_key_loop }}" aria-hidden="true">
+                        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="modalLabel-{{ cat_key_loop }}"><i class="bi {{ category_data_loop.icon }} me-2"></i>{{ category_data_loop.name }} - All Videos</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                                        {% for video in category_data_loop.videos %} {# Show ALL videos #}
+                                        <div class="col">
+                                            <div class="card h-100">
+                                                <div class="video-embed-container">
+                                                    {% if video.platform == 'muse' %}
+                                                        <div class="muse-video-player" data-video="{{ video.video_id }}"></div>
+                                                    {% elif video.platform == 'youtube' %}
+                                                        <iframe src="https://www.youtube.com/embed/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                                    {% elif video.platform == 'vimeo' %}
+                                                        <iframe src="https://player.vimeo.com/video/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                                    {% else %}
+                                                        <p class="p-2 text-danger">Cannot display: {{ video.title }} (Unsupported Platform)</p>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="card-body">
+                                                    <h5 class="card-title">{{ video.title }}</h5>
+                                                    <div class="d-flex justify-content-between align-items-center mt-2">
+                                                        <button class="btn btn-outline-danger btn-sm like-button" data-video-id="{{ video.db_id }}">
+                                                            <i class="bi bi-heart"></i> Like
+                                                        </button>
+                                                        <span class="like-count ms-2" id="like-count-modal-{{ cat_key_loop }}-{{ video.db_id }}">{{ video.likes }} like{{ 's' if video.likes != 1 else '' }}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </section>
+                <hr class="my-5">
+            {% endif %}
+        {% endfor %}
+        {# === End: Manually render Fresh New Vids if it exists === #}
+
         <!-- Marketing & Form Trigger Section - UPDATED CONTENT & VIDEO STYLING -->
         <section class="marketing-summary mb-5 p-4 bg-light rounded border">
             <div class="text-center">
@@ -105,109 +203,6 @@
             {% endif %}
         </section>
         <!-- END Marketing & Form Trigger Section -->
-
-        {# === Start: Manually render Fresh New Vids if it exists === #}
-        {% set fresh_vids_category_data = none %}
-        {% set fresh_vids_key = 'fresh_new_vids' %} {# Ensure this key matches app.py #}
-        {% for cat_tuple in vespa_categories %}
-            {% if cat_tuple[0] == fresh_vids_key %}
-                {% set fresh_vids_category_data = cat_tuple[1] %}
-            {% endif %}
-        {% endfor %}
-
-        {% if fresh_vids_category_data and fresh_vids_category_data.videos %}
-        <section id="{{ fresh_vids_key }}" class="vespa-category-section mb-5 p-4 bg-white rounded border shadow-sm">
-            <div class="category-header-{{ fresh_vids_key|lower }}" style="border-left: 5px solid {{ fresh_vids_category_data.color }}; padding-left: 10px; margin-bottom: 1rem;">
-                <h2 style="color: {{ fresh_vids_category_data.color }};"><i class="bi {{ fresh_vids_category_data.icon }} me-2"></i>{{ fresh_vids_category_data.name }}</h2>
-                {% if fresh_vids_category_data.description %}<p class="lead">{{ fresh_vids_category_data.description }}</p>{% endif %}
-            </div>
-            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-                {% for video in fresh_vids_category_data.videos[:3] %} {# Show only first 3 videos #}
-                <div class="col">
-                    <div class="card h-100">
-                        <div class="video-embed-container">
-                            {% if video.platform == 'muse' %}
-                                <div class="muse-video-player" data-video="{{ video.video_id }}"></div>
-                            {% elif video.platform == 'youtube' %}
-                                <iframe src="https://www.youtube.com/embed/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
-                            {% elif video.platform == 'vimeo' %}
-                                <iframe src="https://player.vimeo.com/video/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
-                            {% else %}
-                                <p class="p-2 text-danger">Cannot display: {{ video.title }} (Unsupported Platform)</p>
-                            {% endif %}
-                        </div>
-                        <div class="card-body">
-                            <h5 class="card-title">{{ video.title }}</h5>
-                            <div class="d-flex justify-content-between align-items-center mt-2">
-                                <button class="btn btn-outline-danger btn-sm like-button" data-video-id="{{ video.db_id }}">
-                                    <i class="bi bi-heart"></i> Like
-                                </button>
-                                <span class="like-count ms-2" id="like-count-fresh-{{ video.db_id }}">{{ video.likes }} like{{ 's' if video.likes != 1 else '' }}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-
-            {% if fresh_vids_category_data.videos|length > 3 %}
-            <div class="text-center mt-4 mb-3">
-                <button type="button" class="btn btn-lg text-white" 
-                        style="background-color: {{ fresh_vids_category_data.color }}; border-color: {{ fresh_vids_category_data.color }};" 
-                        data-bs-toggle="modal" data-bs-target="#modal-{{ fresh_vids_key }}">
-                    View all videos in {{ fresh_vids_category_data.name }}
-                </button>
-            </div>
-
-            <!-- Modal for Fresh New Vids -->
-            <div class="modal fade" id="modal-{{ fresh_vids_key }}" tabindex="-1" aria-labelledby="modalLabel-{{ fresh_vids_key }}" aria-hidden="true">
-                <div class="modal-dialog modal-xl modal-dialog-scrollable">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="modalLabel-{{ fresh_vids_key }}"><i class="bi {{ fresh_vids_category_data.icon }} me-2"></i>{{ fresh_vids_category_data.name }} - All Videos</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-                                {% for video in fresh_vids_category_data.videos %} {# Show ALL videos #}
-                                <div class="col">
-                                    <div class="card h-100">
-                                        <div class="video-embed-container">
-                                            {% if video.platform == 'muse' %}
-                                                <div class="muse-video-player" data-video="{{ video.video_id }}"></div>
-                                            {% elif video.platform == 'youtube' %}
-                                                <iframe src="https://www.youtube.com/embed/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
-                                            {% elif video.platform == 'vimeo' %}
-                                                <iframe src="https://player.vimeo.com/video/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
-                                            {% else %}
-                                                <p class="p-2 text-danger">Cannot display: {{ video.title }} (Unsupported Platform)</p>
-                                            {% endif %}
-                                        </div>
-                                        <div class="card-body">
-                                            <h5 class="card-title">{{ video.title }}</h5>
-                                            <div class="d-flex justify-content-between align-items-center mt-2">
-                                                <button class="btn btn-outline-danger btn-sm like-button" data-video-id="{{ video.db_id }}">
-                                                    <i class="bi bi-heart"></i> Like
-                                                </button>
-                                                <span class="like-count ms-2" id="like-count-fresh-modal-{{ video.db_id }}">{{ video.likes }} like{{ 's' if video.likes != 1 else '' }}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-        </section>
-        <hr class="my-5">
-        {% endif %}
-        {# === End: Manually render Fresh New Vids if it exists === #}
 
         <!-- Most Liked Videos Section -->
         {% if most_liked_videos %}
@@ -349,8 +344,11 @@
         {% endif %}
 
         <!-- VESPA Categories & Videos -->
+        {# This loop will now render all categories passed from app.py in their given order #}
+        {# app.py is responsible for ensuring Fresh New Vids is first if it exists #}
+        {% set fresh_vids_key_rendered = 'fresh_new_vids' %} {# Define the key that was manually rendered #}
         {% for cat_key, category in vespa_categories %}
-            {% if cat_key != fresh_vids_key and category.videos %} {# Skip fresh_vids_key as it's rendered above #}
+            {% if cat_key != fresh_vids_key_rendered and category.videos %} {# Skip the manually rendered category #}
             <section id="{{ cat_key|lower }}" class="vespa-category-section mb-5">
                 <div class="category-header-{{ cat_key|lower }}">
                     <h2><i class="bi {{ category.icon }} me-2"></i>{{ category.name }}</h2>
@@ -377,15 +375,15 @@
                                     <button class="btn btn-outline-danger btn-sm like-button" data-video-id="{{ video.db_id }}">
                                         <i class="bi bi-heart"></i> Like
                                     </button>
-                                    <span class="like-count ms-2" id="like-count-{{ video.db_id }}">{{ video.likes }} like{{ 's' if video.likes != 1 else '' }}</span>
+                                    <span class="like-count ms-2" id="like-count-{{ cat_key }}-{{ video.db_id }}">{{ video.likes }} like{{ 's' if video.likes != 1 else '' }}</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                     {% endfor %}
-                </div> <!-- Closes the row for top 5 videos -->
+                </div> <!-- Closes the row for top 3 videos -->
 
-                {% if category.videos|length > 0 %}
+                {% if category.videos|length > 3 %}
                 <div class="text-center mt-4 mb-3">
                     <button type="button" class="btn btn-lg text-white" 
                             style="background-color: {{ category.color }}; border-color: {{ category.color }};" 
@@ -424,7 +422,7 @@
                                                     <button class="btn btn-outline-danger btn-sm like-button" data-video-id="{{ video.db_id }}">
                                                         <i class="bi bi-heart"></i> Like
                                                     </button>
-                                                    <span class="like-count ms-2" id="like-count-modal-{{ video.db_id }}">{{ video.likes }} like{{ 's' if video.likes != 1 else '' }}</span>
+                                                    <span class="like-count ms-2" id="like-count-modal-{{ cat_key }}-{{ video.db_id }}">{{ video.likes }} like{{ 's' if video.likes != 1 else '' }}</span>
                                                 </div>
                                             </div>
                                         </div>
