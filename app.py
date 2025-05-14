@@ -131,6 +131,63 @@ def load_data():
     
     return categories_map, all_videos_list
 
+def load_featured_series_data():
+    """Loads the featured series and its top 3 liked videos."""
+    conn = None
+    featured_series_info = None
+    featured_series_top_videos = []
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        # 1. Find the featured series
+        cur.execute("SELECT id, series_key, name, description FROM series WHERE is_featured = TRUE LIMIT 1")
+        series_row = cur.fetchone()
+
+        if series_row:
+            featured_series_info = dict(series_row)
+            
+            # 2. Fetch videos assigned to this series, including their like counts, ordered by likes
+            # We need a JOIN to get video details and likes from the 'videos' table
+            # and order by likes to easily pick the top 3.
+            cur.execute("""
+                SELECT v.id, v.platform, v.video_id_on_platform, v.title, v.view_count, v.likes, v.id as db_id
+                FROM videos v
+                JOIN video_series_assignments vsa ON v.id = vsa.video_db_id
+                WHERE vsa.series_db_id = %s
+                ORDER BY v.likes DESC, vsa.display_order ASC, v.id ASC
+                LIMIT 3
+            """, (featured_series_info['id'],))
+            
+            video_rows = cur.fetchall()
+            for vid_row in video_rows:
+                # Construct video dict similar to how load_data does for consistency in templates
+                video_data = {
+                    'db_id': vid_row['id'],
+                    'platform': vid_row['platform'],
+                    'video_id': vid_row['video_id_on_platform'],
+                    'title': vid_row['title'],
+                    'view_count': vid_row['view_count'],
+                    'likes': vid_row['likes']
+                    # No need for category_keys here as these are for a specific series display
+                }
+                featured_series_top_videos.append(video_data)
+        # else: No featured series found, variables will remain None/empty list
+
+    except (psycopg2.Error, Exception) as e:
+        # flash(f"Database error loading featured series data: {e}", "danger") # Flashing from here might be tricky if not in request context
+        print(f"Database error in load_featured_series_data: {e}")
+        # Return empty structures on error
+        return None, [] 
+    finally:
+        if conn:
+            if cur: # Check if cur was initialized
+                cur.close()
+            conn.close()
+    
+    return featured_series_info, featured_series_top_videos
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -176,15 +233,20 @@ def index():
         sorted_videos_by_likes = sorted(all_videos_data, key=lambda v: v.get('likes', 0), reverse=True)
         most_liked_videos = sorted_videos_by_likes[:3] # Get top 3 liked videos
 
+    # Load featured series data
+    featured_series_info, featured_series_top_videos = load_featured_series_data()
+
     return render_template(
         'index.html', 
         message=message, 
         error=error, 
-        featured_video=featured_video, 
-        vespa_categories=display_categories, # Use the filtered list for the main sections
-        marketing_promo_video=marketing_promo_video, # Pass the special promo video
-        most_liked_videos=most_liked_videos, # Pass the most liked videos
-        all_videos_data=all_videos_data, # Still available if needed for other things
+        featured_video=featured_video, # This is the old daily featured video, consider removing or repurposing
+        vespa_categories=display_categories, 
+        marketing_promo_video=marketing_promo_video, 
+        most_liked_videos=most_liked_videos, 
+        all_videos_data=all_videos_data, 
+        featured_series_info=featured_series_info, # Pass featured series details
+        featured_series_top_videos=featured_series_top_videos, # Pass its top videos
         current_year=datetime.date.today().year
     )
 
@@ -235,20 +297,41 @@ def admin_logout():
 def admin_dashboard():
     vespa_categories_from_db, all_videos = load_data() # Use load_data for categories too
     
+    # Fetch all series to potentially display info or for other uses on dashboard if needed in future
+    # For now, primarily ensuring the admin_manage_series link in navbar works
+    # No direct use of all_series_for_dashboard in this template yet.
+    conn = None
+    all_series_for_dashboard = []
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT id, series_key, name FROM series ORDER BY name")
+        all_series_for_dashboard = cur.fetchall()
+    except (psycopg2.Error, Exception) as e_series_fetch:
+        print(f"Error fetching series for admin dashboard navbar: {e_series_fetch}")
+        # flash('Could not load series list for navbar.', 'warning') # Optional: flash message
+    finally:
+        if conn:
+            if cur: # cur might not be defined if get_db_connection failed
+                cur.close()
+            conn.close()
+
     return render_template(
         'admin.html', 
         videos=all_videos, 
         vespa_categories=vespa_categories_from_db, # Pass categories from database
-        supported_platforms=SUPPORTED_PLATFORMS
+        supported_platforms=SUPPORTED_PLATFORMS,
+        all_series=all_series_for_dashboard # Pass all series for navbar or future use
     )
 
 @app.route('/admin/add_video', methods=['POST'])
 @login_required
 def add_video():
-    video_id_on_platform = request.form.get('video_id') # Renamed for clarity to match DB field
+    video_id_on_platform = request.form.get('video_id')
     platform = request.form.get('platform')
     title = request.form.get('title')
     category_keys_from_form = request.form.getlist('category_keys')
+    series_ids_from_form = request.form.getlist('series_ids') # Get selected series IDs
 
     if not all([video_id_on_platform, title, platform]):
         flash('Video ID, Platform, and Title are required.', 'danger')
@@ -289,15 +372,29 @@ def add_video():
                         (new_video_db_id, cat_key)
                     )
                 except psycopg2.errors.ForeignKeyViolation:
-                    # This might happen if a category key from the form is somehow invalid/not in DB
-                    # Or if the category wasn't migrated properly.
                     flash(f"Warning: Could not assign category '{cat_key}' to video '{title}'. Category might not exist.", "warning")
                     print(f"ForeignKeyViolation: Could not assign category '{cat_key}' to video '{title}' (DB ID: {new_video_db_id})")
-                    # Continue adding other categories
                 except psycopg2.errors.UniqueViolation:
-                    # Should not happen if adding a new video, but good to be aware
                     flash(f"Warning: Video '{title}' already assigned to category '{cat_key}'.", "warning")
                     print(f"UniqueViolation: Video '{title}' (DB ID: {new_video_db_id}) already assigned to category '{cat_key}'.")
+        
+        # Assign series
+        if new_video_db_id and series_ids_from_form:
+            for series_id in series_ids_from_form:
+                try:
+                    cur.execute(
+                        "INSERT INTO video_series_assignments (video_db_id, series_db_id) VALUES (%s, %s)",
+                        (new_video_db_id, int(series_id)) # Ensure series_id is int
+                    )
+                except psycopg2.errors.ForeignKeyViolation:
+                    flash(f"Warning: Could not assign series ID '{series_id}' to video '{title}'. Series might not exist.", "warning")
+                    print(f"ForeignKeyViolation: Could not assign series ID '{series_id}' to video '{title}' (DB ID: {new_video_db_id})")
+                except psycopg2.errors.UniqueViolation:
+                    flash(f"Warning: Video '{title}' already assigned to series ID '{series_id}'.", "warning")
+                    print(f"UniqueViolation: Video '{title}' (DB ID: {new_video_db_id}) already assigned to series ID '{series_id}'.")
+                except ValueError:
+                    flash(f"Warning: Invalid series ID '{series_id}' provided.", "warning")
+                    print(f"ValueError: edit_video - Invalid series ID '{series_id}' for video DB ID {new_video_db_id}")
 
         conn.commit()
         flash(f'Video \'{title}\' added successfully!', 'success')
@@ -364,10 +461,16 @@ def edit_video(platform, video_id_on_platform_from_url):
     conn = None
     video_to_edit = None
     video_db_id = None # To store the primary key of the video from the 'videos' table
+    all_series_for_form = [] # For series selection in the form
+    assigned_series_ids = [] # IDs of series currently assigned to this video
 
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        # Fetch all available series for the form selector
+        cur.execute("SELECT id, name, series_key FROM series ORDER BY name")
+        all_series_for_form = cur.fetchall()
 
         # Fetch the video by platform and video_id_on_platform to get its DB ID and details
         cur.execute(
@@ -391,6 +494,14 @@ def edit_video(platform, video_id_on_platform_from_url):
         assigned_cat_rows = cur.fetchall()
         video_to_edit['category_keys'] = [row['category_db_key'] for row in assigned_cat_rows]
 
+        # Fetch current series assignments for this video
+        cur.execute(
+            "SELECT series_db_id FROM video_series_assignments WHERE video_db_id = %s",
+            (video_db_id,)
+        )
+        assigned_series_rows = cur.fetchall()
+        assigned_series_ids = [row['series_db_id'] for row in assigned_series_rows]
+
         # Fetch all available categories for the form
         cur.execute("SELECT category_key, name FROM categories ORDER BY name")
         all_categories_list = cur.fetchall()
@@ -399,11 +510,20 @@ def edit_video(platform, video_id_on_platform_from_url):
         if request.method == 'POST':
             new_title = request.form.get('title')
             new_category_keys = request.form.getlist('category_keys')
+            new_series_ids = request.form.getlist('series_ids') # Get selected series IDs
 
             if not new_title:
                 flash('Title cannot be empty.', 'danger')
-                # Need to pass original video_to_edit and all_categories for template re-render
-                return render_template('admin_edit_video.html', video_to_edit=video_to_edit, all_categories=all_categories_for_template, supported_platforms=SUPPORTED_PLATFORMS, platform=platform, video_id=video_id_on_platform_from_url)
+                return render_template(
+                    'admin_edit_video.html', 
+                    video_to_edit=video_to_edit, 
+                    all_categories=all_categories_for_template, 
+                    supported_platforms=SUPPORTED_PLATFORMS, 
+                    platform=platform, 
+                    video_id=video_id_on_platform_from_url,
+                    all_series=all_series_for_form, # Pass all series back to form
+                    assigned_series_ids=assigned_series_ids # Pass current assignments back
+                )
 
             # Start transaction for update
             # Update video title
@@ -416,7 +536,7 @@ def edit_video(platform, video_id_on_platform_from_url):
             # 1. Delete existing assignments for this video
             cur.execute("DELETE FROM video_category_assignments WHERE video_db_id = %s", (video_db_id,))
             
-            # 2. Insert new assignments
+            # 2. Insert new category assignments
             if new_category_keys:
                 for cat_key in new_category_keys:
                     try:
@@ -427,8 +547,26 @@ def edit_video(platform, video_id_on_platform_from_url):
                     except psycopg2.errors.ForeignKeyViolation:
                         flash(f"Warning: Could not assign category '{cat_key}' to video '{new_title}'. Category may not exist.", "warning")
                         print(f"ForeignKeyViolation: edit_video - Could not assign '{cat_key}' to video DB ID {video_db_id}")
-                    # Not expecting UniqueViolation here as we delete first, but good to be mindful.
             
+            # Update series assignments
+            # 1. Delete existing series assignments for this video
+            cur.execute("DELETE FROM video_series_assignments WHERE video_db_id = %s", (video_db_id,))
+            # 2. Insert new series assignments
+            if new_series_ids:
+                for series_id_str in new_series_ids:
+                    try:
+                        series_id = int(series_id_str)
+                        cur.execute(
+                            "INSERT INTO video_series_assignments (video_db_id, series_db_id) VALUES (%s, %s)",
+                            (video_db_id, series_id)
+                        )
+                    except psycopg2.errors.ForeignKeyViolation:
+                        flash(f"Warning: Could not assign series ID '{series_id}' to video '{new_title}'. Series may not exist.", "warning")
+                        print(f"ForeignKeyViolation: edit_video - Could not assign series ID '{series_id}' to video DB ID {video_db_id}")
+                    except ValueError:
+                        flash(f"Warning: Invalid series ID '{series_id_str}' submitted.", "warning")
+                        print(f"ValueError: edit_video - Invalid series ID '{series_id_str}' for video DB ID {video_db_id}")
+
             conn.commit()
             flash(f'Video \'{new_title}\' updated successfully.', 'success')
             return redirect(url_for('admin_dashboard'))
@@ -446,7 +584,16 @@ def edit_video(platform, video_id_on_platform_from_url):
             conn.close()
 
     # For GET request, render the template with the fetched video and categories
-    return render_template('admin_edit_video.html', video_to_edit=video_to_edit, all_categories=all_categories_for_template, supported_platforms=SUPPORTED_PLATFORMS, platform=platform, video_id=video_id_on_platform_from_url)
+    return render_template(
+        'admin_edit_video.html', 
+        video_to_edit=video_to_edit, 
+        all_categories=all_categories_for_template, 
+        supported_platforms=SUPPORTED_PLATFORMS, 
+        platform=platform, 
+        video_id=video_id_on_platform_from_url,
+        all_series=all_series_for_form, # Pass all series for the dropdown/checkboxes
+        assigned_series_ids=assigned_series_ids # Pass IDs of series currently assigned
+    )
 
 # Comment out or remove the migrate_data_to_db function if you haven't already
 # @app.route('/admin/migrate_to_db')
@@ -490,6 +637,59 @@ def like_video(video_db_id):
             cur.close()
         if conn:
             conn.close()
+
+@app.route('/admin/series', methods=['GET', 'POST'])
+@login_required
+def admin_manage_series():
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        if request.method == 'POST':
+            series_key = request.form.get('series_key')
+            name = request.form.get('name')
+            description = request.form.get('description', '')
+            is_featured = 'is_featured' in request.form # Checkbox value
+
+            if not series_key or not name:
+                flash('Series Key and Name are required.', 'danger')
+            else:
+                try:
+                    # If is_featured is true, first set all other series to not featured
+                    if is_featured:
+                        cur.execute("UPDATE series SET is_featured = FALSE WHERE is_featured = TRUE")
+                    
+                    cur.execute(
+                        "INSERT INTO series (series_key, name, description, is_featured) VALUES (%s, %s, %s, %s)",
+                        (series_key, name, description, is_featured)
+                    )
+                    conn.commit()
+                    flash(f'Series \'{name}\' added successfully!', 'success')
+                except psycopg2.errors.UniqueViolation:
+                    conn.rollback()
+                    flash(f'Error: Series Key \'{series_key}\' already exists.', 'danger')
+                except (psycopg2.Error, Exception) as e_insert:
+                    conn.rollback()
+                    flash(f'Database error adding series: {e_insert}', 'danger')
+                    print(f"Database error in admin_manage_series (POST): {e_insert}")
+            return redirect(url_for('admin_manage_series')) # Redirect to refresh and show list
+
+        # For GET request, fetch all series to display
+        cur.execute("SELECT id, series_key, name, description, is_featured, created_at FROM series ORDER BY name")
+        all_series = cur.fetchall()
+
+    except (psycopg2.Error, Exception) as e_fetch:
+        flash(f'Database error fetching series: {e_fetch}', 'danger')
+        print(f"Database error in admin_manage_series (GET): {e_fetch}")
+        all_series = [] # Ensure it's an empty list on error
+    finally:
+        if conn:
+            if cur:
+                cur.close()
+            conn.close()
+    
+    return render_template('admin_series.html', all_series=all_series)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True) 

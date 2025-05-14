@@ -11,6 +11,11 @@
             display: inline-block;
             margin-right: 15px;
         }
+        .series-checkbox-group .form-check {
+            /* Styles for series checkboxes, can be similar or different */
+            display: block; /* Or inline-block if preferred */
+            margin-bottom: 5px;
+        }
     </style>
 </head>
 <body>
@@ -21,6 +26,14 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" aria-current="page" href="{{ url_for('admin_dashboard') }}">Manage Videos</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin_manage_series') }}">Manage Series</a>
+                    </li>
+                </ul>
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('index') }}" target="_blank">View Public Site</a>
@@ -81,6 +94,21 @@
                             {% else %}
                                 <p>No categories defined.</p>
                             {% endfor %}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Assign to Series (Optional)</label>
+                        <div class="series-checkbox-group border p-2 rounded" style="max-height: 150px; overflow-y: auto;">
+                            {% if all_series %}
+                                {% for series_item in all_series %}
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="series_ids" value="{{ series_item.id }}" id="series_add_{{ series_item.id }}">
+                                        <label class="form-check-label" for="series_add_{{ series_item.id }}">{{ series_item.name }} (<code>{{ series_item.series_key }}</code>)</label>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted">No series defined. You can create series in the <a href="{{ url_for('admin_manage_series') }}">Manage Series</a> section.</p>
+                            {% endif %}
                         </div>
                     </div>
                     <button type="submit" class="btn btn-primary">Add Video</button>

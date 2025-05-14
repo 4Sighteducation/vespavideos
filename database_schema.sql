@@ -27,3 +27,20 @@
 
         ALTER TABLE videos
 ADD COLUMN likes INTEGER DEFAULT 0;
+
+CREATE TABLE series (
+    id SERIAL PRIMARY KEY,
+    series_key TEXT UNIQUE NOT NULL,  -- A short, unique key like 'revision_series_2024' or 'vision_foundations'
+    name TEXT NOT NULL,               -- User-friendly name like "Revision Series 2024"
+    description TEXT,
+    is_featured BOOLEAN DEFAULT FALSE, -- Flag to mark a series as the one to feature on the homepage
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE video_series_assignments (
+    id SERIAL PRIMARY KEY,
+    video_db_id INTEGER NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+    series_db_id INTEGER NOT NULL REFERENCES series(id) ON DELETE CASCADE,
+    display_order INTEGER DEFAULT 0, -- Optional: to control video order within a series
+    UNIQUE (video_db_id, series_db_id) -- Ensure a video is not assigned to the same series multiple times
+);
