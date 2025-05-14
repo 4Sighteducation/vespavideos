@@ -248,6 +248,7 @@ def load_featured_series_data():
                     'db_id': vid_row['id'],
                     'platform': vid_row['platform'],
                     'video_id': vid_row['video_id_on_platform'],
+                    'video_id_on_platform': vid_row['video_id_on_platform'],
                     'title': vid_row['title'],
                     'view_count': vid_row['view_count'],
                     'likes': vid_row['likes']
@@ -269,6 +270,7 @@ def load_featured_series_data():
                     'db_id': vid_row['id'],
                     'platform': vid_row['platform'],
                     'video_id': vid_row['video_id_on_platform'],
+                    'video_id_on_platform': vid_row['video_id_on_platform'],
                     'title': vid_row['title'],
                     'view_count': vid_row['view_count'],
                     'likes': vid_row['likes']
@@ -936,6 +938,73 @@ def admin_manage_series():
             conn.close()
     
     return render_template('admin_series.html', all_series=all_series, all_problems=all_problems_for_filter)
+
+@app.route('/admin/series/toggle_feature/<int:series_id>', methods=['POST'])
+@login_required
+def admin_toggle_feature_series(series_id):
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        # First, find the current status of the series to be toggled
+        cur.execute("SELECT is_featured FROM series WHERE id = %s", (series_id,))
+        current_series = cur.fetchone()
+
+        if not current_series:
+            flash('Series not found.', 'danger')
+            return redirect(url_for('admin_manage_series'))
+
+        new_status = not current_series[0]
+
+        # If we are setting this series to featured, unfeature all others first
+        if new_status:
+            cur.execute("UPDATE series SET is_featured = FALSE WHERE is_featured = TRUE AND id != %s", (series_id,))
+        
+        # Update the target series
+        cur.execute("UPDATE series SET is_featured = %s WHERE id = %s", (new_status, series_id))
+        conn.commit()
+        flash('Series featured status updated successfully.', 'success')
+
+    except (psycopg2.Error, Exception) as e:
+        if conn:
+            conn.rollback()
+        flash(f'Database error updating series: {e}', 'danger')
+        print(f"Database error in admin_toggle_feature_series: {e}")
+    finally:
+        if conn:
+            if cur:
+                cur.close()
+            conn.close()
+    return redirect(url_for('admin_manage_series'))
+
+@app.route('/admin/series/delete/<int:series_id>', methods=['POST'])
+@login_required
+def admin_delete_series(series_id):
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        # Assuming ON DELETE CASCADE is set up for video_series_assignments.series_db_id
+        # Otherwise, assignments should be manually deleted first: 
+        # cur.execute("DELETE FROM video_series_assignments WHERE series_db_id = %s", (series_id,))
+        cur.execute("DELETE FROM series WHERE id = %s RETURNING name", (series_id,))
+        deleted_series = cur.fetchone()
+        conn.commit()
+        if deleted_series:
+            flash(f'Series \'{deleted_series[0]}\' deleted successfully.', 'success')
+        else:
+            flash('Series not found or already deleted.', 'warning')
+    except (psycopg2.Error, Exception) as e:
+        if conn:
+            conn.rollback()
+        flash(f'Database error deleting series: {e}', 'danger')
+        print(f"Database error in admin_delete_series: {e}")
+    finally:
+        if conn:
+            if cur:
+                cur.close()
+            conn.close()
+    return redirect(url_for('admin_manage_series'))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True) 

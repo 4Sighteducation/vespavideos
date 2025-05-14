@@ -94,7 +94,7 @@
                                 <th scope="col">Description</th>
                                 <th scope="col" class="text-center">Featured?</th>
                                 <th scope="col">Created</th>
-                                <!-- <th scope="col" class="text-end">Actions</th> -->
+                                <th scope="col" class="text-end">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -104,17 +104,21 @@
                                     <td>{{ series_item.name }}</td>
                                     <td>{{ series_item.description | truncate(100, True) if series_item.description else '' }}</td>
                                     <td class="text-center">
-                                        {% if series_item.is_featured %}
-                                            <span class="badge bg-success">Yes</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">No</span>
-                                        {% endif %}
+                                        <form method="POST" action="{{ url_for('admin_toggle_feature_series', series_id=series_item.id) }}" style="display: inline-block;">
+                                            <button type="submit" class="btn btn-sm {{ 'btn-success' if series_item.is_featured else 'btn-outline-secondary' }}">
+                                                {{ 'Yes' if series_item.is_featured else 'No' }}
+                                            </button>
+                                        </form>
                                     </td>
                                     <td>{{ series_item.created_at.strftime('%Y-%m-%d %H:%M') if series_item.created_at else 'N/A' }}</td>
-                                    <!-- <td class="text-end">
-                                        <a href="#" class="btn btn-sm btn-outline-primary me-1 disabled">Edit</a>
-                                        <a href="#" class="btn btn-sm btn-outline-danger disabled">Delete</a>
-                                    </td> -->
+                                    <td class="text-end">
+                                        {# Edit button can be added later if full series editing is needed #}
+                                        {# <a href="{{ url_for('admin_edit_series', series_id=series_item.id) }}" class="btn btn-sm btn-outline-primary me-1">Edit</a> #}
+                                        <form method="POST" action="{{ url_for('admin_delete_series', series_id=series_item.id) }}" style="display: inline-block;" 
+                                              onsubmit="return confirm('Are you sure you want to delete the series: ' + {{ series_item.name | tojson }} + '? This will also unassign it from all videos.');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                        </form>
+                                    </td>
                                 </tr>
                             {% endfor %}
                         </tbody>

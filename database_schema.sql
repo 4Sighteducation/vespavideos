@@ -47,3 +47,32 @@ CREATE TABLE video_series_assignments (
 
   ALTER TABLE videos
     ADD COLUMN created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+
+    CREATE TABLE problems (
+    problem_id SERIAL PRIMARY KEY,
+    problem_text TEXT NOT NULL,
+    theme TEXT NOT NULL
+);
+
+-- Optional: Add a description to the 'problems' table and its columns for clarity
+COMMENT ON TABLE problems IS 'Stores predefined problems that videos can address, grouped by theme.';
+COMMENT ON COLUMN problems.problem_id IS 'Unique identifier for each problem.';
+COMMENT ON COLUMN problems.problem_text IS 'The textual description of the problem (e.g., Unclear future goals).';
+COMMENT ON COLUMN problems.theme IS 'The VESPA theme this problem belongs to (e.g., VISION, EFFORT).';
+
+CREATE TABLE video_problems (
+    id SERIAL PRIMARY KEY, -- Optional, but consistent with your other join tables
+    video_db_id INTEGER NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+    problem_id INTEGER NOT NULL REFERENCES problems(problem_id) ON DELETE CASCADE,
+    UNIQUE (video_db_id, problem_id) -- Ensures a video isn't linked to the same problem multiple times
+);
+
+ALTER TABLE video_series_assignments
+DROP CONSTRAINT video_series_assignments_series_db_id_fkey; -- <<< REPLACE THIS NAME
+
+-- Step 3: Add the foreign key constraint back WITH ON DELETE CASCADE
+ALTER TABLE video_series_assignments
+ADD CONSTRAINT video_series_assignments_series_db_id_fkey -- <<< Use the same or a new name
+FOREIGN KEY (series_db_id)
+REFERENCES series(id)
+ON DELETE CASCADE;
