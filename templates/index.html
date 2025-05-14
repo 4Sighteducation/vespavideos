@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
         /* Add custom styles for category colors here or in style.css */
-        {% for cat_key, category in vespa_categories.items() %}
+        {% for cat_key, category in vespa_categories %}
         .category-header-{{ cat_key|lower }} {
             border-left: 5px solid {{ category.color }};
             padding-left: 10px;
@@ -245,7 +245,7 @@
         {% endif %}
 
         <!-- VESPA Categories & Videos -->
-        {% for cat_key, category in vespa_categories.items() %}
+        {% for cat_key, category in vespa_categories %}
             {% if category.videos %}
             <section id="{{ cat_key|lower }}" class="vespa-category-section mb-5">
                 <div class="category-header-{{ cat_key|lower }}">
