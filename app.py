@@ -96,20 +96,20 @@ def load_data():
         db_videos = cur.fetchall()
         for vid_row in db_videos:
             video_dict = {
-                'db_id': vid_row['id'], # Store the database primary key for this video
+                'db_id': vid_row['id'], 
                 'platform': vid_row['platform'],
-                'video_id': vid_row['video_id_on_platform'], # Match key name used in templates
-                'video_id_on_platform': vid_row['video_id_on_platform'], # Explicitly add for url_for debugging
+                'video_id': vid_row['video_id_on_platform'], 
+                'video_id_on_platform': vid_row['video_id_on_platform'], 
                 'title': vid_row['title'],
                 'view_count': vid_row['view_count'],
                 'likes': vid_row['likes'],
                 'created_at': vid_row['created_at'],
-                'keywords': vid_row['keywords'], # Add keywords
-                'category_keys': [], # Initialize, will be populated from assignments
-                'problems': [] # Initialize, will be populated from video_problems
+                'keywords': vid_row['keywords'] if vid_row['keywords'] is not None else '', # Ensure keywords is a string
+                'category_keys': [], 
+                'problems': [] 
             }
             all_videos_list.append(video_dict)
-            videos_by_db_id[vid_row['id']] = video_dict # Add to helper map
+            videos_by_db_id[vid_row['id']] = video_dict
 
         # 3. Fetch Video-Category Assignments and Link them
         cur.execute("SELECT video_db_id, category_db_key FROM video_category_assignments")
@@ -370,11 +370,11 @@ def search():
     query = request.args.get('query', '').strip()
     problem_query_val = request.args.get('problem_query', '').strip()
 
-    # Prioritize general query text input. If empty, use the problem dropdown selection.
     if not query and problem_query_val:
         query = problem_query_val
         
-    categories_data, all_videos_data = load_data() # This now includes keywords and problems
+    categories_data, all_videos_data = load_data()
+    all_problems_for_filter = get_all_problems() # Fetch problems for the modal
     
     search_results = []
     
@@ -412,6 +412,7 @@ def search():
     return render_template('search_results.html',
                            query=query,
                            results=search_results,
+                           all_problems=all_problems_for_filter, # Pass problems to template
                            current_year=datetime.date.today().year)
 
 @app.route('/submit', methods=['POST'])
@@ -440,6 +441,7 @@ def submit_form():
 
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
+    all_problems_for_filter = get_all_problems() # Fetch all problems
     if request.method == 'POST':
         if request.form.get('username') == ADMIN_USERNAME and request.form.get('password') == ADMIN_PASSWORD:
             session['logged_in'] = True
@@ -447,7 +449,7 @@ def admin_login():
             return redirect(request.args.get('next') or url_for('admin_dashboard'))
         else:
             flash('Invalid credentials.', 'danger')
-    return render_template('admin_login.html')
+    return render_template('admin_login.html', all_problems=all_problems_for_filter)
 
 @app.route('/admin/logout')
 @login_required
@@ -459,11 +461,9 @@ def admin_logout():
 @app.route('/admin')
 @login_required
 def admin_dashboard():
-    vespa_categories_from_db, all_videos = load_data() # Use load_data for categories too
+    vespa_categories_from_db, all_videos = load_data()
+    all_problems_for_filter = get_all_problems() # Fetch all problems
     
-    # Fetch all series to potentially display info or for other uses on dashboard if needed in future
-    # For now, primarily ensuring the admin_manage_series link in navbar works
-    # No direct use of all_series_for_dashboard in this template yet.
     conn = None
     all_series_for_dashboard = []
     try:
@@ -483,9 +483,10 @@ def admin_dashboard():
     return render_template(
         'admin.html', 
         videos=all_videos, 
-        vespa_categories=vespa_categories_from_db, # Pass categories from database
+        vespa_categories=vespa_categories_from_db,
         supported_platforms=SUPPORTED_PLATFORMS,
-        all_series=all_series_for_dashboard # Pass all series for navbar or future use
+        all_series=all_series_for_dashboard,
+        all_problems=all_problems_for_filter # Pass problems
     )
 
 @app.route('/admin/add_video', methods=['POST'])
@@ -669,9 +670,10 @@ def delete_video(platform, video_id_on_platform_from_url):
 def edit_video(platform, video_id_on_platform_from_url):
     conn = None
     video_to_edit = None
-    video_db_id = None # To store the primary key of the video from the 'videos' table
-    all_series_for_form = [] # For series selection in the form
-    assigned_series_ids = [] # IDs of series currently assigned to this video
+    video_db_id = None 
+    all_series_for_form = [] 
+    assigned_series_ids = [] 
+    all_problems_for_filter = get_all_problems() # Fetch problems
 
     try:
         conn = get_db_connection()
@@ -730,8 +732,9 @@ def edit_video(platform, video_id_on_platform_from_url):
                     supported_platforms=SUPPORTED_PLATFORMS, 
                     platform=platform, 
                     video_id=video_id_on_platform_from_url,
-                    all_series=all_series_for_form, # Pass all series back to form
-                    assigned_series_ids=assigned_series_ids # Pass current assignments back
+                    all_series=all_series_for_form, 
+                    assigned_series_ids=assigned_series_ids,
+                    all_problems=all_problems_for_filter # Pass problems
                 )
 
             # Start transaction for update
@@ -800,8 +803,9 @@ def edit_video(platform, video_id_on_platform_from_url):
         supported_platforms=SUPPORTED_PLATFORMS, 
         platform=platform, 
         video_id=video_id_on_platform_from_url,
-        all_series=all_series_for_form, # Pass all series for the dropdown/checkboxes
-        assigned_series_ids=assigned_series_ids # Pass IDs of series currently assigned
+        all_series=all_series_for_form, 
+        assigned_series_ids=assigned_series_ids,
+        all_problems=all_problems_for_filter # Pass problems
     )
 
 # Comment out or remove the migrate_data_to_db function if you haven't already
@@ -851,6 +855,7 @@ def like_video(video_db_id):
 @login_required
 def admin_manage_series():
     conn = None
+    all_problems_for_filter = get_all_problems() # Fetch problems
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
@@ -898,7 +903,7 @@ def admin_manage_series():
                 cur.close()
             conn.close()
     
-    return render_template('admin_series.html', all_series=all_series)
+    return render_template('admin_series.html', all_series=all_series, all_problems=all_problems_for_filter)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True) 

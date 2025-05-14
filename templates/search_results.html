@@ -2,8 +2,7 @@
 
 {% block title %}Search Results for "{{ query }}" - VESPA Videos{% endblock %}
 
-{% block content %}
-<div class="container mt-5">
+{% block page_header %}
     <header class="mb-4">
         <h2>Search Results</h2>
         {% if query %}
@@ -12,7 +11,10 @@
             <p class="lead">No search query was provided.</p>
         {% endif %}
     </header>
+{% endblock %}
 
+{% block content %}
+<div class="container mt-5">
     <div class="row">
         {% if results %}
             {% for video in results %}
