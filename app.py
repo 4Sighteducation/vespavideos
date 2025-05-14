@@ -88,7 +88,7 @@ def load_data():
                 'color': cat_row['color'],
                 'description': cat_row['description'],
                 'videos': [], # Initialize with an empty list for videos
-                'icon': category_icons.get(cat_row['category_key'], 'bi-collection-play') # Default icon if not specified
+                'icon': category_icons.get(cat_row['category_key'].lower(), 'bi-collection-play') # Use .lower() for lookup & Default icon
             }
 
         # 2. Fetch All Videos (including the new 'likes' column)
@@ -156,6 +156,8 @@ def load_data():
         # Sort these fresh videos by created_at descending (most recent first)
         temp_fresh_vids.sort(key=lambda v: v.get('created_at'), reverse=True)
         fresh_vids_list = temp_fresh_vids
+
+        print(f"DEBUG: Found {len(fresh_vids_list)} fresh videos.") # Temporary debug line
 
         # Only add the "Fresh New Vids" category if there are any fresh videos
         if fresh_vids_list:
