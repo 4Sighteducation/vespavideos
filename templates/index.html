@@ -153,10 +153,36 @@
 
         <!-- Marketing & Form Trigger Section - UPDATED CONTENT & VIDEO STYLING -->
         <section class="marketing-summary mb-5 p-4 bg-light rounded border">
-            <div class="text-center">
-                <img src="https://www.vespa.academy/assets/images/full-trimmed-transparent-customcolor-1-832x947.png" alt="VESPA Academy Logo" class="marketing-logo-small">
-                <h2>Transform Student Success with VESPA Academy</h2>
-                <p class="lead px-md-5">Go beyond academic content and develop the crucial non-cognitive skills that predict success. Built on the proven VESPA framework (Vision, Effort, Systems, Practice, Attitude).</p>
+            <div class="row align-items-center">
+                <div class="col-lg-7 text-center text-lg-start mb-4 mb-lg-0">
+                    <img src="https://www.vespa.academy/assets/images/full-trimmed-transparent-customcolor-1-832x947.png" alt="VESPA Academy Logo" class="marketing-logo-small mb-3">
+                    <h2>Transform Student Success with VESPA Academy</h2>
+                    <p class="lead px-md-5 px-lg-0">Go beyond academic content and develop the crucial non-cognitive skills that predict success. Built on the proven VESPA framework (Vision, Effort, Systems, Practice, Attitude).</p>
+                </div>
+                <div class="col-lg-5">
+                    {% if marketing_promo_video %}
+                    <div class="main-marketing-video-embed text-center">
+                        {% if marketing_promo_video.title %}
+                        <h4 class="mb-3 visually-hidden">{{ marketing_promo_video.title }}</h4> {# Title can be visually hidden if redundant but good for SEO/accessibility #}
+                        {% endif %}
+                        <div class="video-embed-container"> {# Removed inline style and mx-auto #}
+                            {% if marketing_promo_video.platform == 'muse' %}
+                                <div class="muse-video-player" data-video="{{ marketing_promo_video.video_id }}"></div>
+                            {% elif marketing_promo_video.platform == 'youtube' %}
+                                <iframe src="https://www.youtube.com/embed/{{ marketing_promo_video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                            {% elif marketing_promo_video.platform == 'vimeo' %}
+                                <iframe src="https://player.vimeo.com/video/{{ marketing_promo_video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                            {% else %}
+                                <p class="p-2 text-danger">Cannot display: {{ marketing_promo_video.title }} (Unsupported Platform)</p>
+                            {% endif %}
+                        </div>
+                        <p class="mt-2 text-muted small"><em>Watch our recent entry for the BESA Evidence & Impact Award.</em></p>
+                    </div>
+                    {% else %}
+                    {# Optional: Placeholder if no marketing video is set #}
+                    {# <div class="p-3 bg-secondary-subtle rounded text-center text-muted">Promotional video placeholder</div> #}
+                    {% endif %}
+                </div>
             </div>
 
             <hr class="my-4">
@@ -180,27 +206,6 @@
                   Request More Information
                 </button>
             </div>
-
-            {% if marketing_promo_video %}
-            <div class="main-marketing-video-embed mt-4 text-center">
-                {% if marketing_promo_video.title %}
-                <h4 class="mb-3">{{ marketing_promo_video.title }}</h4>
-                {% endif %}
-                <!-- Adjusted video container for better responsiveness and smaller size -->
-                <div class="video-embed-container mx-auto" style="max-width: 480px; background-color: transparent !important; /* Further reduced max-width & force transparent bg */">
-                    {% if marketing_promo_video.platform == 'muse' %}
-                        <div class="muse-video-player" data-video="{{ marketing_promo_video.video_id }}"></div>
-                    {% elif marketing_promo_video.platform == 'youtube' %}
-                        <iframe src="https://www.youtube.com/embed/{{ marketing_promo_video.video_id }}" frameborder="0" allowfullscreen></iframe>
-                    {% elif marketing_promo_video.platform == 'vimeo' %}
-                        <iframe src="https://player.vimeo.com/video/{{ marketing_promo_video.video_id }}" frameborder="0" allowfullscreen></iframe>
-                    {% else %}
-                        <p class="p-2 text-danger">Cannot display: {{ marketing_promo_video.title }} (Unsupported Platform)</p>
-                    {% endif %}
-                </div>
-                <p class="mt-2 text-muted small"><em>Watch our recent entry for the BESA Evidence & Impact Award.</em></p>
-            </div>
-            {% endif %}
         </section>
         <!-- END Marketing & Form Trigger Section -->
 
