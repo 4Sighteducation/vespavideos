@@ -33,10 +33,12 @@
     {# For now, this attribute is not directly transferable to a block, will address if success modal breaks #}
 
     <div class="container mt-5" {% if message %}data-show-success-modal="true"{% endif %}> {# Moved data attribute here #}
-        <header class="text-center mb-5">
-            <img src="https://www.vespa.academy/assets/images/full-trimmed-transparent-customcolor-1-832x947.png" alt="VESPA Academy Logo" class="logo" style="max-height: 70px;"> <!-- Only VESPA Logo -->
-            <h1 class="mt-3">VESPA Academy Video Resources</h1>
-        </header>
+        <div class="main-page-header bg-primary text-white p-4 p-md-5 mb-5 rounded shadow-sm" style="background-color: #008080 !important;"> {# Example Teal color #}
+            <div class="text-center">
+                <img src="https://www.vespa.academy/assets/images/full-trimmed-transparent-customcolor-1-832x947.png" alt="VESPA Academy Logo" class="logo mb-3" style="max-height: 80px;"> 
+                <h1 class="mt-2 display-5">VESPA Academy Video Resources</h1>
+            </div>
+        </div>
 
         <!-- Page Explainer Section -->
         <section class="text-center mb-5 p-4 bg-light rounded border shadow-sm">
@@ -49,6 +51,23 @@
             </p>
         </section>
         <!-- END Page Explainer Section -->
+
+        <!-- Category Navigation Buttons -->
+        <section class="category-nav-buttons text-center mb-5">
+            <h3 class="mb-3">Quick Navigation</h3>
+            <div class="btn-group flex-wrap" role="group" aria-label="Category quick navigation">
+                {% set excluded_cats_for_nav = ['marketing_promo'] %}
+                {# Loop through vespa_categories which should be ordered as desired by app.py (Fresh new vids first) #}
+                {% for cat_key, category_data in vespa_categories %}
+                    {% if cat_key not in excluded_cats_for_nav and category_data.videos %}
+                        {# Ensure the section ID exists for the link to work #}
+                        {# The section IDs are like id="fresh_new_vids" or id="vision" #}
+                        <a href="#{{ cat_key|lower }}" class="btn btn-outline-primary m-1">{{ category_data.name }}</a>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+        <!-- END Category Navigation Buttons -->
 
         {# === Start: Manually render Fresh New Vids if it exists, in its new position === #}
         {% set fresh_vids_key_to_render = 'fresh_new_vids' %} {# Key used in app.py #}
