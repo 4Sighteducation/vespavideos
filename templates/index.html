@@ -57,12 +57,17 @@
             <h3 class="mb-3">Quick Navigation</h3>
             <div class="btn-group flex-wrap" role="group" aria-label="Category quick navigation">
                 {% set excluded_cats_for_nav = ['marketing_promo'] %}
-                {# Loop through vespa_categories which should be ordered as desired by app.py (Fresh new vids first) #}
                 {% for cat_key, category_data in vespa_categories %}
                     {% if cat_key not in excluded_cats_for_nav and category_data.videos %}
-                        {# Ensure the section ID exists for the link to work #}
-                        {# The section IDs are like id="fresh_new_vids" or id="vision" #}
-                        <a href="#{{ cat_key|lower }}" class="btn btn-outline-primary m-1">{{ category_data.name }}</a>
+                        {# Determine text color based on background brightness - simple version #}
+                        {# This is a very basic heuristic. A proper solution is more complex. #}
+                        {# For now, let's assume dark text for light backgrounds and light text for dark backgrounds. #}
+                        {# A common approach is to check luminance. If most colors are dark, white text is good. #}
+                        <a href="#{{ cat_key|lower }}" 
+                           class="btn m-1" 
+                           style="background-color: {{ category_data.color }}; border-color: {{ category_data.color }}; color: white;">
+                           {{ category_data.name }}
+                        </a>
                     {% endif %}
                 {% endfor %}
             </div>
