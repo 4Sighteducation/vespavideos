@@ -89,7 +89,7 @@
                 <h4 class="mb-3">{{ marketing_promo_video.title }}</h4>
                 {% endif %}
                 <!-- Adjusted video container for better responsiveness and smaller size -->
-                <div class="video-embed-container mx-auto" style="max-width: 480px; /* Further reduced max-width */">
+                <div class="video-embed-container mx-auto" style="max-width: 480px; background-color: transparent !important; /* Further reduced max-width & force transparent bg */">
                     {% if marketing_promo_video.platform == 'muse' %}
                         <div class="muse-video-player" data-video="{{ marketing_promo_video.video_id }}"></div>
                     {% elif marketing_promo_video.platform == 'youtube' %}
@@ -100,6 +100,7 @@
                         <p class="p-2 text-danger">Cannot display: {{ marketing_promo_video.title }} (Unsupported Platform)</p>
                     {% endif %}
                 </div>
+                <p class="mt-2 text-muted small"><em>Watch our recent entry for the BESA Evidence & Impact Award.</em></p>
             </div>
             {% endif %}
         </section>
