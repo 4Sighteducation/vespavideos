@@ -65,6 +65,16 @@ def load_data():
     all_videos_list = []
     videos_by_db_id = {} # Helper to quickly find videos by their database ID
 
+    # Define icons for categories
+    category_icons = {
+        'vision': 'bi-lightbulb',
+        'effort': 'bi-graph-up',
+        'systems': 'bi-gear-wide-connected',
+        'practice': 'bi-pencil-square',
+        'attitude': 'bi-emoji-smile',
+        # Add more icons here as new categories are created or discovered
+    }
+
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor) # Use DictCursor for easy column access by name
@@ -77,7 +87,8 @@ def load_data():
                 'name': cat_row['name'],
                 'color': cat_row['color'],
                 'description': cat_row['description'],
-                'videos': [] # Initialize with an empty list for videos
+                'videos': [], # Initialize with an empty list for videos
+                'icon': category_icons.get(cat_row['category_key'], 'bi-collection-play') # Default icon if not specified
             }
 
         # 2. Fetch All Videos (including the new 'likes' column)
@@ -152,8 +163,8 @@ def load_data():
                 'name': 'Fresh New Vids',
                 'color': '#00e5db',  # Theme color as requested
                 'description': 'Videos added in the last 14 days!',
-                'videos': fresh_vids_list
-                # No 'category_key' needed inside the value, as it's the dict key
+                'videos': fresh_vids_list,
+                'icon': 'bi-stars' # Icon for Fresh New Vids
             }
 
     except (psycopg2.Error, Exception) as e:
