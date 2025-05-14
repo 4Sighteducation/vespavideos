@@ -41,6 +41,18 @@
             <!-- <p class="lead">Empowering Students Through Non-Cognitive Skills Development</p> --> <!-- Old subtitle removed -->
         </header>
 
+        <!-- Page Explainer Section -->
+        <section class="text-center mb-5 p-4 bg-light rounded border shadow-sm">
+            <h2 class="mb-3"><i class="bi bi-camera-reels me-2"></i>Welcome to VESPA Videos! <i class="bi bi-stars text-warning ms-2"></i></h2>
+            <p class="lead px-md-5">
+                Dive into our curated collection of inspiring and insightful videos! We've handpicked some of our absolute favourites and even created a few originals, all designed to boost your <i class="bi bi-lightbulb me-1"></i><strong>Vision</strong>, supercharge your <i class="bi bi-graph-up me-1"></i><strong>Effort</strong>, refine your <i class="bi bi-gear-wide-connected me-1"></i><strong>Systems</strong>, enhance your <i class="bi bi-pencil-square me-1"></i><strong>Practice</strong>, and shape your <i class="bi bi-emoji-smile me-1"></i><strong>Attitude</strong>.
+            </p>
+            <p class="px-md-5">
+                Explore by VESPA category or theme. Whether you're looking for a specific strategy or tackling a particular challenge, we've got a VESPA-approved (<em>wink, wink!</em>) video to help you on your journey to success!
+            </p>
+        </section>
+        <!-- END Page Explainer Section -->
+
         <!-- Marketing & Form Trigger Section - UPDATED CONTENT & VIDEO STYLING -->
         <section class="marketing-summary mb-5 p-4 bg-light rounded border">
             <div class="text-center">
@@ -241,7 +253,7 @@
                     <p class="lead">{{ category.description }}</p>
                 </div>
                 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-                    {% for video in category.videos[:5] %} {# Show only first 5 videos #}
+                    {% for video in category.videos[:3] %} {# Show only first 3 videos #}
                     <div class="col">
                         <div class="card h-100">
                             <div class="video-embed-container">

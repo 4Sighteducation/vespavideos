@@ -81,7 +81,7 @@ def load_data():
             }
 
         # 2. Fetch All Videos (including the new 'likes' column)
-        cur.execute("SELECT id, platform, video_id_on_platform, title, view_count, likes FROM videos ORDER BY id") # Added ORDER BY and likes
+        cur.execute("SELECT id, platform, video_id_on_platform, title, view_count, likes, created_at FROM videos ORDER BY id") # Added ORDER BY and likes, and created_at
         db_videos = cur.fetchall()
         for vid_row in db_videos:
             video_dict = {
@@ -92,6 +92,7 @@ def load_data():
                 'title': vid_row['title'],
                 'view_count': vid_row['view_count'],
                 'likes': vid_row['likes'], # Add likes count
+                'created_at': vid_row['created_at'], # Add created_at timestamp
                 'category_keys': [] # Initialize, will be populated from assignments
             }
             all_videos_list.append(video_dict)
@@ -114,9 +115,46 @@ def load_data():
             # else:
                 # print(f"Warning: Assignment found for non-existent video_db_id {video_db_id} or category_key {category_key}")
 
-        # Sort videos within each category, e.g., by title or id, if desired. For now, they are by insertion order from assignments.
-        # Example: for cat_data in categories_map.values():
-        #              cat_data['videos'].sort(key=lambda v: v['title'])
+        # Sort videos within each category by likes (descending) and then title (ascending)
+        for cat_data in categories_map.values():
+            # Ensure 'likes' exists and default to 0 if not; ensure 'title' exists and default to empty string
+            cat_data['videos'].sort(key=lambda v: (v.get('likes', 0), v.get('title', '')), reverse=False) # Initial sort for title ascending
+            cat_data['videos'].sort(key=lambda v: v.get('likes', 0), reverse=True) # Stable sort for likes descending
+
+        # Dynamically create and populate "Fresh New Vids" category
+        fresh_vids_category_key = 'fresh_new_vids'
+        fresh_vids_list = []
+        
+        # Calculate the cutoff date for "fresh" videos (last 14 days)
+        # Ensure datetime and timedelta are available (datetime is imported, timedelta needs to be)
+        # datetime.timedelta is part of the datetime module.
+        fourteen_days_ago = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=14)
+
+        temp_fresh_vids = []
+        for video in all_videos_list: # all_videos_list now contains video dicts with 'created_at'
+            if video.get('created_at'): # Check if created_at is not None
+                video_created_at = video['created_at']
+                # Ensure video_created_at is offset-aware if it's not already
+                # (psycopg2 usually makes TIMESTAMPTZ aware, but good to be safe)
+                if not video_created_at.tzinfo:
+                    video_created_at = video_created_at.replace(tzinfo=datetime.timezone.utc)
+                
+                if video_created_at >= fourteen_days_ago:
+                    temp_fresh_vids.append(video)
+        
+        # Sort these fresh videos by created_at descending (most recent first)
+        temp_fresh_vids.sort(key=lambda v: v.get('created_at'), reverse=True)
+        fresh_vids_list = temp_fresh_vids
+
+        # Only add the "Fresh New Vids" category if there are any fresh videos
+        if fresh_vids_list:
+            categories_map[fresh_vids_category_key] = {
+                'name': 'Fresh New Vids',
+                'color': '#00e5db',  # Theme color as requested
+                'description': 'Videos added in the last 14 days!',
+                'videos': fresh_vids_list
+                # No 'category_key' needed inside the value, as it's the dict key
+            }
 
     except (psycopg2.Error, Exception) as e:
         flash(f"Database error loading data: {e}", "danger")

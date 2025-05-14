@@ -44,3 +44,6 @@ CREATE TABLE video_series_assignments (
     display_order INTEGER DEFAULT 0, -- Optional: to control video order within a series
     UNIQUE (video_db_id, series_db_id) -- Ensure a video is not assigned to the same series multiple times
 );
+
+  ALTER TABLE videos
+    ADD COLUMN created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
