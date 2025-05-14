@@ -1,0 +1,29 @@
+Video Resolution - 746 x 720
+Status - Unable to play in our app
+Original "Standard" Video Link - https://muse.ai/v/tHsTKTk
+
+The following Show the embed codes if I change the dimensions in muse of the video to a width of 1280
+
+Manual Embed Code - <iframe src="https://muse.ai/embed/tHsTKTk?cover_play_position=center" width="1280" height="1235.39" frameborder="0" allowfullscreen></iframe>
+
+Manual HTML - <div class="muse-video-player" data-video="tHsTKTk" data-coverplayposition="center" data-width="1280"></div><script src="https://muse.ai/static/js/embed-player.min.js"></script>
+
+Manual Pop Up Link - <div class="muse-video-popup" data-video="tHsTKTk" data-coverplayposition="center" data-width="1280" data-thumbnail="1"></div><script src="https://muse.ai/static/js/embed-player.min.js"></script>
+
+Responsive Embed - <div style="position:relative;padding-bottom:96.514745%"><iframe src="https://muse.ai/embed/tHsTKTk?cover_play_position=center" style="width:100%;height:100%;position:absolute;left:0;top:0" frameborder="0" allowfullscreen></iframe></div>
+
+Responsive HTML - <div class="muse-video-player" data-video="tHsTKTk" data-coverplayposition="center" data-width="100%"></div><script src="https://muse.ai/static/js/embed-player.min.js"></script>
+
+Responsive Pop Up Link - <div class="muse-video-popup" data-video="tHsTKTk" data-coverplayposition="center" data-width="100%" data-thumbnail="1"></div><script src="https://muse.ai/static/js/embed-player.min.js"></script>
+
+Fit Embed - Not Possible
+
+Fit HTML - <div class="muse-video-player" data-video="tHsTKTk" data-coverplayposition="center" data-sizing="fit"></div><script src="https://muse.ai/static/js/embed-player.min.js"></script>
+
+Fit Pop Up Link HTML - <div class="muse-video-popup" data-video="tHsTKTk" data-coverplayposition="center" data-sizing="fit" data-thumbnail="1"></div><script src="https://muse.ai/static/js/embed-player.min.js"></script>
+
+Fill Embed - Not POssible
+
+Fill HTML - <div class="muse-video-player" data-video="tHsTKTk" data-coverplayposition="center" data-sizing="fill"></div><script src="https://muse.ai/static/js/embed-player.min.js"></script>
+
+Fill Pop Up Link HTML - <div class="muse-video-popup" data-video="tHsTKTk" data-coverplayposition="center" data-sizing="fill" data-thumbnail="1"></div><script src="https://muse.ai/static/js/embed-player.min.js"></script>
