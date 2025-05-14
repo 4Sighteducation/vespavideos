@@ -84,6 +84,10 @@
                         <input type="text" class="form-control" id="title" name="title" required>
                     </div>
                     <div class="mb-3">
+                        <label for="keywords" class="form-label">Keywords (comma-separated)</label>
+                        <textarea class="form-control" id="keywords" name="keywords" rows="2" placeholder="e.g., study skills, motivation, exam technique"></textarea>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">VESPA Categories</label>
                         <div class="category-checkbox-group">
                             {% for cat_key, category in vespa_categories.items() %}
@@ -95,6 +99,19 @@
                                 <p>No categories defined.</p>
                             {% endfor %}
                         </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="problem_ids" class="form-label">Relevant Problems (select multiple if needed)</label>
+                        <select multiple class="form-select" id="problem_ids" name="problem_ids" size="8">
+                            {% if all_problems %}
+                                {% for problem in all_problems %}
+                                    <option value="{{ problem.problem_id }}">{{ problem.theme }}: {{ problem.problem_text }}</option>
+                                {% endfor %}
+                            {% else %}
+                                <option disabled>No problems loaded.</option>
+                            {% endif %}
+                        </select>
+                        <div class="form-text">Hold Ctrl (or Cmd on Mac) to select multiple problems.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Assign to Series (Optional)</label>

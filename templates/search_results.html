@@ -38,14 +38,6 @@
                                 Platform: {{ video.platform | capitalize }}<br>
                                 Likes: {{ video.likes | default(0) }}
                             </p>
-                            <button type="button" class="btn btn-primary btn-sm watch-video-btn" 
-                                    data-bs-toggle="modal" 
-                                    data-bs-target="#videoPlayModal"
-                                    data-video-platform="{{ video.platform }}"
-                                    data-video-id="{{ video.video_id_on_platform }}"
-                                    data-video-title="{{ video.title | escape }}">
-                                Watch Video
-                            </button>
                         </div>
                         {% if video.keywords %}
                         <div class="card-footer">

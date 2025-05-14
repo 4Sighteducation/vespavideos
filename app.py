@@ -495,8 +495,10 @@ def add_video():
     video_id_on_platform = request.form.get('video_id')
     platform = request.form.get('platform')
     title = request.form.get('title')
+    keywords = request.form.get('keywords', '').strip() # Get keywords
     category_keys_from_form = request.form.getlist('category_keys')
     series_ids_from_form = request.form.getlist('series_ids')
+    problem_ids_from_form = request.form.getlist('problem_ids') # Get selected problem IDs
 
     if not all([video_id_on_platform, title, platform]):
         flash('Video ID, Platform, and Title are required.', 'danger')
@@ -562,19 +564,18 @@ def add_video():
 
         else: # Video does not exist, create it new
             cur.execute(
-                "INSERT INTO videos (platform, video_id_on_platform, title) VALUES (%s, %s, %s) RETURNING id",
-                (platform, video_id_on_platform, title)
+                "INSERT INTO videos (platform, video_id_on_platform, title, keywords) VALUES (%s, %s, %s, %s) RETURNING id",
+                (platform, video_id_on_platform, title, keywords) # Add keywords to insert
             )
             new_video_db_id_row = cur.fetchone()
             if new_video_db_id_row:
                 video_db_id_to_use = new_video_db_id_row[0]
             else:
-                # Should not happen if INSERT was successful and RETURNING id was used, but as a safeguard:
                 conn.rollback()
                 flash('Error creating new video record.', 'danger')
                 return redirect(url_for('admin_dashboard'))
             
-            # For new videos, assign categories and series as submitted
+            # For new videos, assign categories, series, and problems as submitted
             if video_db_id_to_use and category_keys_from_form:
                 for cat_key in category_keys_from_form:
                     try:
@@ -602,7 +603,22 @@ def add_video():
                     except ValueError:
                         flash(f"Warning: Invalid series ID '{series_id_str}' provided for new video.", "warning")
 
-        # Commit happens outside the if/else for existing/new video logic
+            # Add problem assignments for new video
+            if video_db_id_to_use and problem_ids_from_form:
+                for problem_id_str in problem_ids_from_form:
+                    try:
+                        problem_id = int(problem_id_str)
+                        cur.execute(
+                            "INSERT INTO video_problems (video_db_id, problem_id) VALUES (%s, %s)",
+                            (video_db_id_to_use, problem_id)
+                        )
+                    except psycopg2.errors.ForeignKeyViolation:
+                        flash(f"Warning: Could not assign problem ID '{problem_id}' to new video '{title}'. Problem might not exist.", "warning")
+                    except psycopg2.errors.UniqueViolation:
+                        flash(f"Warning: New video '{title}' already assigned to problem ID '{problem_id}'.", "warning")
+                    except ValueError:
+                        flash(f"Warning: Invalid problem ID '{problem_id_str}' provided for new video.", "warning")
+
         conn.commit()
         if was_existing_video:
             flash(f'Assignments for existing video \'{title}\' updated successfully!', 'success')
@@ -673,19 +689,18 @@ def edit_video(platform, video_id_on_platform_from_url):
     video_db_id = None 
     all_series_for_form = [] 
     assigned_series_ids = [] 
-    all_problems_for_filter = get_all_problems() # Fetch problems
+    all_problems_for_filter = get_all_problems()
+    assigned_problem_ids = [] # For problems currently assigned to this video
 
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        # Fetch all available series for the form selector
-        cur.execute("SELECT id, name, series_key FROM series ORDER BY name")
+        cur.execute("SELECT id, series_key, name FROM series ORDER BY name")
         all_series_for_form = cur.fetchall()
 
-        # Fetch the video by platform and video_id_on_platform to get its DB ID and details
         cur.execute(
-            "SELECT id, platform, video_id_on_platform, title FROM videos WHERE platform = %s AND video_id_on_platform = %s",
+            "SELECT id, platform, video_id_on_platform, title, keywords FROM videos WHERE platform = %s AND video_id_on_platform = %s", # Added keywords
             (platform, video_id_on_platform_from_url)
         )
         fetched_video = cur.fetchone()
@@ -695,9 +710,8 @@ def edit_video(platform, video_id_on_platform_from_url):
             return redirect(url_for('admin_dashboard'))
         
         video_db_id = fetched_video['id']
-        video_to_edit = dict(fetched_video) # Convert DictRow to a mutable dict
+        video_to_edit = dict(fetched_video)
 
-        # Fetch current category assignments for this video
         cur.execute(
             "SELECT category_db_key FROM video_category_assignments WHERE video_db_id = %s",
             (video_db_id,)
@@ -705,7 +719,6 @@ def edit_video(platform, video_id_on_platform_from_url):
         assigned_cat_rows = cur.fetchall()
         video_to_edit['category_keys'] = [row['category_db_key'] for row in assigned_cat_rows]
 
-        # Fetch current series assignments for this video
         cur.execute(
             "SELECT series_db_id FROM video_series_assignments WHERE video_db_id = %s",
             (video_db_id,)
@@ -713,18 +726,28 @@ def edit_video(platform, video_id_on_platform_from_url):
         assigned_series_rows = cur.fetchall()
         assigned_series_ids = [row['series_db_id'] for row in assigned_series_rows]
 
-        # Fetch all available categories for the form
+        # Fetch current problem assignments for this video
+        cur.execute(
+            "SELECT problem_id FROM video_problems WHERE video_db_id = %s",
+            (video_db_id,)
+        )
+        assigned_prob_rows = cur.fetchall()
+        assigned_problem_ids = [row['problem_id'] for row in assigned_prob_rows]
+
         cur.execute("SELECT category_key, name FROM categories ORDER BY name")
         all_categories_list = cur.fetchall()
         all_categories_for_template = {row['category_key']: {'name': row['name']} for row in all_categories_list}
 
         if request.method == 'POST':
             new_title = request.form.get('title')
+            new_keywords = request.form.get('keywords', '').strip() # Get keywords
             new_category_keys = request.form.getlist('category_keys')
-            new_series_ids = request.form.getlist('series_ids') # Get selected series IDs
+            new_series_ids = request.form.getlist('series_ids')
+            new_problem_ids = request.form.getlist('problem_ids') # Get selected problem IDs
 
             if not new_title:
                 flash('Title cannot be empty.', 'danger')
+                # Ensure all necessary context is passed back on validation error
                 return render_template(
                     'admin_edit_video.html', 
                     video_to_edit=video_to_edit, 
@@ -732,23 +755,18 @@ def edit_video(platform, video_id_on_platform_from_url):
                     supported_platforms=SUPPORTED_PLATFORMS, 
                     platform=platform, 
                     video_id=video_id_on_platform_from_url,
-                    all_series=all_series_for_form, 
+                    all_series=all_series_for_form,
                     assigned_series_ids=assigned_series_ids,
-                    all_problems=all_problems_for_filter # Pass problems
+                    all_problems=all_problems_for_filter,
+                    assigned_problem_ids=assigned_problem_ids # Pass current problem assignments back
                 )
 
-            # Start transaction for update
-            # Update video title
             cur.execute(
-                "UPDATE videos SET title = %s WHERE id = %s",
-                (new_title, video_db_id)
+                "UPDATE videos SET title = %s, keywords = %s WHERE id = %s", # Add keywords to update
+                (new_title, new_keywords, video_db_id)
             )
 
-            # Update category assignments
-            # 1. Delete existing assignments for this video
             cur.execute("DELETE FROM video_category_assignments WHERE video_db_id = %s", (video_db_id,))
-            
-            # 2. Insert new category assignments
             if new_category_keys:
                 for cat_key in new_category_keys:
                     try:
@@ -760,10 +778,7 @@ def edit_video(platform, video_id_on_platform_from_url):
                         flash(f"Warning: Could not assign category '{cat_key}' to video '{new_title}'. Category may not exist.", "warning")
                         print(f"ForeignKeyViolation: edit_video - Could not assign '{cat_key}' to video DB ID {video_db_id}")
             
-            # Update series assignments
-            # 1. Delete existing series assignments for this video
             cur.execute("DELETE FROM video_series_assignments WHERE video_db_id = %s", (video_db_id,))
-            # 2. Insert new series assignments
             if new_series_ids:
                 for series_id_str in new_series_ids:
                     try:
@@ -779,6 +794,23 @@ def edit_video(platform, video_id_on_platform_from_url):
                         flash(f"Warning: Invalid series ID '{series_id_str}' submitted.", "warning")
                         print(f"ValueError: edit_video - Invalid series ID '{series_id_str}' for video DB ID {video_db_id}")
 
+            # Update problem assignments
+            cur.execute("DELETE FROM video_problems WHERE video_db_id = %s", (video_db_id,))
+            if new_problem_ids:
+                for problem_id_str in new_problem_ids:
+                    try:
+                        problem_id = int(problem_id_str)
+                        cur.execute(
+                            "INSERT INTO video_problems (video_db_id, problem_id) VALUES (%s, %s)",
+                            (video_db_id, problem_id)
+                        )
+                    except psycopg2.errors.ForeignKeyViolation:
+                        flash(f"Warning: Could not assign problem ID '{problem_id}' to video '{new_title}'. Problem may not exist.", "warning")
+                    except psycopg2.errors.UniqueViolation: # Should not happen due to prior delete, but good practice
+                        flash(f"Warning: Video '{new_title}' already assigned to problem ID '{problem_id}'.", "warning")
+                    except ValueError:
+                        flash(f"Warning: Invalid problem ID '{problem_id_str}' submitted for video '{new_title}'.", "warning")
+
             conn.commit()
             flash(f'Video \'{new_title}\' updated successfully.', 'success')
             return redirect(url_for('admin_dashboard'))
@@ -788,14 +820,13 @@ def edit_video(platform, video_id_on_platform_from_url):
             conn.rollback()
         flash(f'Database error editing video: {e}', 'danger')
         print(f"Database error in edit_video: {e}")
-        return redirect(url_for('admin_dashboard')) # Redirect on error to avoid broken state
+        return redirect(url_for('admin_dashboard'))
     finally:
         if cur:
             cur.close()
         if conn:
             conn.close()
 
-    # For GET request, render the template with the fetched video and categories
     return render_template(
         'admin_edit_video.html', 
         video_to_edit=video_to_edit, 
@@ -803,9 +834,10 @@ def edit_video(platform, video_id_on_platform_from_url):
         supported_platforms=SUPPORTED_PLATFORMS, 
         platform=platform, 
         video_id=video_id_on_platform_from_url,
-        all_series=all_series_for_form, 
+        all_series=all_series_for_form,
         assigned_series_ids=assigned_series_ids,
-        all_problems=all_problems_for_filter # Pass problems
+        all_problems=all_problems_for_filter,
+        assigned_problem_ids=assigned_problem_ids # Pass assigned problem IDs to template
     )
 
 # Comment out or remove the migrate_data_to_db function if you haven't already
