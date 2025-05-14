@@ -1,0 +1,39 @@
+<div class="modal fade" id="searchModal" tabindex="-1" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="searchModalLabel">Search Videos</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('search') }}" method="GET">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="searchQueryText" class="form-label">What are you looking for?</label>
+                        <input type="text" name="query" class="form-control" id="searchQueryText" placeholder="Enter keywords, title, problem, or theme...">
+                    </div>
+                    <div class="mb-3">
+                        <label for="searchProblemSelect" class="form-label">Or select a specific problem:</label>
+                        <select name="problem_query" class="form-select" id="searchProblemSelect">
+                            <option value="">-- Select a Problem --</option>
+                            {% if all_problems %}
+                                {% for problem in all_problems %}
+                                    <option value="{{ problem.problem_text }}">{{ problem.theme }}: {{ problem.problem_text }}</option>
+                                {% endfor %}
+                            {% else %}
+                                <option value="" disabled>Could not load problems.</option>
+                            {% endif %}
+                        </select>
+                    </div>
+                    <p class="form-text text-muted small">
+                        You can use the text box for a general search, or select a problem from the dropdown.
+                        If you use both, the text box query will be prioritized.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Search</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div> 

@@ -1,0 +1,61 @@
+{% extends 'base.html' %} {# Assuming you have a base.html, otherwise adjust #}
+
+{% block title %}Search Results for "{{ query }}" - VESPA Videos{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <header class="mb-4">
+        <h2>Search Results</h2>
+        {% if query %}
+            <p class="lead">Showing results for: <strong>"{{ query }}"</strong></p>
+        {% else %}
+            <p class="lead">No search query was provided.</p>
+        {% endif %}
+    </header>
+
+    <div class="row">
+        {% if results %}
+            {% for video in results %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100">
+                        {# Basic Video Thumbnail Placeholder - Replace with your actual thumbnail logic #}
+                        {% if video.platform == 'youtube' %}
+                            <img src="https://img.youtube.com/vi/{{ video.video_id }}/mqdefault.jpg" class="card-img-top" alt="{{ video.title }}">
+                        {% elif video.platform == 'muse' %}
+                            {# Muse.ai might not have a direct thumbnail URL pattern like YouTube. You might need to store a thumbnail URL or use a placeholder. #}
+                            <img src="https://via.placeholder.com/320x180.png?text={{ video.title | urlencode }}" class="card-img-top" alt="{{ video.title }}">
+                        {% elif video.platform == 'vimeo' %}
+                            {# Vimeo thumbnails are more complex to get programmatically without API calls. Store a thumbnail URL if possible. #}
+                            <img src="https://via.placeholder.com/320x180.png?text={{ video.title | urlencode }}" class="card-img-top" alt="{{ video.title }}">
+                        {% else %}
+                            <img src="https://via.placeholder.com/320x180.png?text=Video" class="card-img-top" alt="{{ video.title }}">
+                        {% endif %}
+                        
+                        <div class="card-body">
+                            <h5 class="card-title">{{ video.title }}</h5>
+                            <p class="card-text small text-muted">
+                                Platform: {{ video.platform | capitalize }}<br>
+                                Likes: {{ video.likes | default(0) }}
+                                {# You can add more video details here if needed #}
+                            </p>
+                            {# Link to a video detail page if you have one, or play inline #}
+                            <a href="#" class="btn btn-primary btn-sm">Watch Video</a> {# Placeholder link #}
+                        </div>
+                        {% if video.keywords %}
+                        <div class="card-footer">
+                            <small class="text-muted">Keywords: {{ video.keywords }}</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="col">
+                <p>No videos found matching your search criteria.</p>
+                <p><a href="{{ url_for('index') }}" class="btn btn-primary">Back to Home</a></p> {# Or trigger search modal again #}
+            </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %} 

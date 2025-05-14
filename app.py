@@ -59,7 +59,7 @@ def get_db_connection():
         raise
 
 def load_data():
-    """Loads categories and videos from the Supabase PostgreSQL database."""
+    """Loads categories, videos (including keywords and problems) from the Supabase PostgreSQL database."""
     conn = None
     categories_map = {}
     all_videos_list = []
@@ -91,8 +91,8 @@ def load_data():
                 'icon': category_icons.get(cat_row['category_key'].lower(), 'bi-collection-play') # Use .lower() for lookup & Default icon
             }
 
-        # 2. Fetch All Videos (including the new 'likes' column)
-        cur.execute("SELECT id, platform, video_id_on_platform, title, view_count, likes, created_at FROM videos ORDER BY id") # Added ORDER BY and likes, and created_at
+        # 2. Fetch All Videos (including keywords, likes, created_at)
+        cur.execute("SELECT id, platform, video_id_on_platform, title, view_count, likes, created_at, keywords FROM videos ORDER BY id")
         db_videos = cur.fetchall()
         for vid_row in db_videos:
             video_dict = {
@@ -102,9 +102,11 @@ def load_data():
                 'video_id_on_platform': vid_row['video_id_on_platform'], # Explicitly add for url_for debugging
                 'title': vid_row['title'],
                 'view_count': vid_row['view_count'],
-                'likes': vid_row['likes'], # Add likes count
-                'created_at': vid_row['created_at'], # Add created_at timestamp
-                'category_keys': [] # Initialize, will be populated from assignments
+                'likes': vid_row['likes'],
+                'created_at': vid_row['created_at'],
+                'keywords': vid_row['keywords'], # Add keywords
+                'category_keys': [], # Initialize, will be populated from assignments
+                'problems': [] # Initialize, will be populated from video_problems
             }
             all_videos_list.append(video_dict)
             videos_by_db_id[vid_row['id']] = video_dict # Add to helper map
@@ -117,14 +119,23 @@ def load_data():
             category_key = assignment['category_db_key']
 
             if category_key in categories_map and video_db_id in videos_by_db_id:
-                # Add the category key to the video's list of category keys
                 videos_by_db_id[video_db_id]['category_keys'].append(category_key)
-                # Add a reference to the video object to the category's list of videos
-                # Ensure not to add duplicate video objects if a video somehow got assigned twice (though DB constraint should prevent)
-                # For simplicity here, we assume data integrity from DB constraints.
                 categories_map[category_key]['videos'].append(videos_by_db_id[video_db_id])
-            # else:
-                # print(f"Warning: Assignment found for non-existent video_db_id {video_db_id} or category_key {category_key}")
+
+        # 4. Fetch Video-Problem Assignments and Link them
+        cur.execute("""
+            SELECT vp.video_db_id, p.problem_text, p.theme
+            FROM video_problems vp
+            JOIN problems p ON vp.problem_id = p.problem_id
+        """)
+        problem_assignments = cur.fetchall()
+        for prob_assign in problem_assignments:
+            video_db_id = prob_assign['video_db_id']
+            if video_db_id in videos_by_db_id:
+                videos_by_db_id[video_db_id]['problems'].append({
+                    'text': prob_assign['problem_text'],
+                    'theme': prob_assign['theme']
+                })
 
         # Sort videos within each category by likes (descending) and then title (ascending)
         for cat_data in categories_map.values():
@@ -181,6 +192,25 @@ def load_data():
             conn.close()
     
     return categories_map, all_videos_list
+
+def get_all_problems():
+    """Fetches all unique problems from the database for search filters."""
+    conn = None
+    problems_list = []
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT problem_id, problem_text, theme FROM problems ORDER BY theme, problem_text")
+        problems_list = cur.fetchall()
+    except (psycopg2.Error, Exception) as e:
+        flash(f"Database error loading problems: {e}", "danger")
+        print(f"Database error in get_all_problems: {e}")
+    finally:
+        if conn:
+            if cur:
+                cur.close()
+            conn.close()
+    return problems_list
 
 def load_featured_series_data():
     """Loads the featured series and its top 3 liked videos."""
@@ -272,6 +302,7 @@ def index():
     message = request.args.get('message')
     error = request.args.get('error')
     vespa_categories_data, all_videos_data = load_data()
+    all_problems_for_filter = get_all_problems() # Fetch all problems
     
     featured_video = None
     if all_videos_data:
@@ -330,8 +361,58 @@ def index():
         featured_series_info=featured_series_info, 
         featured_series_top_videos=featured_series_top_videos,
         featured_series_all_videos=featured_series_all_videos, # Pass all series videos
+        all_problems=all_problems_for_filter, # Pass problems to template
         current_year=datetime.date.today().year
     )
+
+@app.route('/search')
+def search():
+    query = request.args.get('query', '').strip()
+    problem_query_val = request.args.get('problem_query', '').strip()
+
+    # Prioritize general query text input. If empty, use the problem dropdown selection.
+    if not query and problem_query_val:
+        query = problem_query_val
+        
+    categories_data, all_videos_data = load_data() # This now includes keywords and problems
+    
+    search_results = []
+    
+    if query:
+        query_lower = query.lower()
+        for video in all_videos_data:
+            # Check title
+            if query_lower in video.get('title', '').lower():
+                search_results.append(video)
+                continue
+            
+            # Check keywords
+            if query_lower in video.get('keywords', '').lower():
+                search_results.append(video)
+                continue
+            
+            # Check problems
+            for problem in video.get('problems', []):
+                if query_lower in problem.get('text', '').lower() or \
+                   query_lower in problem.get('theme', '').lower():
+                    search_results.append(video)
+                    break # Found a match in problems, move to next video
+            if video in search_results: # If added from problem search, continue
+                continue
+
+            # Check categories the video is assigned to
+            for cat_key in video.get('category_keys', []):
+                if cat_key in categories_data: # Ensure category exists in loaded data
+                    category_name = categories_data[cat_key].get('name', '').lower()
+                    if query_lower in category_name:
+                        search_results.append(video)
+                        break # Found a match in category names, move to next video
+            # No need to continue here, it's the last check for this video
+
+    return render_template('search_results.html',
+                           query=query,
+                           results=search_results,
+                           current_year=datetime.date.today().year)
 
 @app.route('/submit', methods=['POST'])
 def submit_form():
