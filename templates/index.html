@@ -41,6 +41,27 @@
             <p class="lead">Empowering Students Through Non-Cognitive Skills Development</p>
         </header>
 
+        <!-- Main Marketing Video Section -->
+        {% if marketing_promo_video %}
+        <section class="main-marketing-video-section mb-5 p-4 bg-dark text-white rounded shadow">
+            <h2 class="text-center mb-3">Our Approach in Action</h2>
+            <div class="video-embed-container mx-auto" style="max-width: 800px;">
+                {% if marketing_promo_video.platform == 'muse' %}
+                    <div class="muse-video-player" data-video="{{ marketing_promo_video.video_id }}"></div>
+                {% elif marketing_promo_video.platform == 'youtube' %}
+                    <iframe src="https://www.youtube.com/embed/{{ marketing_promo_video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                {% elif marketing_promo_video.platform == 'vimeo' %}
+                    <iframe src="https://player.vimeo.com/video/{{ marketing_promo_video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                {% else %}
+                    <p class="p-2 text-danger">Cannot display: {{ marketing_promo_video.title }} (Unsupported Platform)</p>
+                {% endif %}
+            </div>
+            {% if marketing_promo_video.title %}
+            <h4 class="text-center mt-3">{{ marketing_promo_video.title }}</h4>
+            {% endif %}
+        </section>
+        {% endif %}
+
         <!-- Marketing & Form Trigger Section -->
         <section class="marketing-summary mb-5 p-4 bg-light rounded border text-center">
             <img src="https://www.vespa.academy/assets/images/full-trimmed-transparent-customcolor-1-832x947.png" alt="VESPA Academy Logo" class="marketing-logo-small">
@@ -51,6 +72,42 @@
               Request More Information
             </button>
         </section>
+
+        <!-- Most Liked Videos Section -->
+        {% if most_liked_videos %}
+        <section class="most-liked-videos-section mb-5 p-4 bg-white rounded border shadow-sm">
+            <h2 class="text-center mb-4"><i class="bi bi-heart-fill text-danger me-2"></i>Community Favourites</h2>
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                {% for video in most_liked_videos %}
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="video-embed-container">
+                            {% if video.platform == 'muse' %}
+                                <div class="muse-video-player" data-video="{{ video.video_id }}"></div>
+                            {% elif video.platform == 'youtube' %}
+                                <iframe src="https://www.youtube.com/embed/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                            {% elif video.platform == 'vimeo' %}
+                                <iframe src="https://player.vimeo.com/video/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                            {% else %}
+                                <p class="p-2 text-danger">Cannot display: {{ video.title }} (Unsupported Platform)</p>
+                            {% endif %}
+                        </div>
+                        <div class="card-body">
+                            <h5 class="card-title">{{ video.title }}</h5>
+                            <div class="d-flex justify-content-between align-items-center mt-2">
+                                <button class="btn btn-outline-danger btn-sm like-button" data-video-id="{{ video.db_id }}">
+                                    <i class="bi bi-heart"></i> Like
+                                </button>
+                                <span class="like-count ms-2" id="like-count-{{ video.db_id }}">{{ video.likes }} like{{ 's' if video.likes != 1 else '' }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        <hr class="my-5">
+        {% endif %}
         
         <!-- Right Column: VESPA Info Video, About Series & Daily Featured Video -->
         <div class="col-lg-6">
@@ -88,7 +145,7 @@
                     <p class="lead">{{ category.description }}</p>
                 </div>
                 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-                    {% for video in category.videos %}
+                    {% for video in category.videos[:5] %} {# Show only first 5 videos #}
                     <div class="col">
                         <div class="card h-100">
                             <div class="video-embed-container">
@@ -104,11 +161,70 @@
                             </div>
                             <div class="card-body">
                                 <h5 class="card-title">{{ video.title }}</h5>
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <button class="btn btn-outline-danger btn-sm like-button" data-video-id="{{ video.db_id }}">
+                                        <i class="bi bi-heart"></i> Like
+                                    </button>
+                                    <span class="like-count ms-2" id="like-count-{{ video.db_id }}">{{ video.likes }} like{{ 's' if video.likes != 1 else '' }}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
                     {% endfor %}
+                </div> <!-- Closes the row for top 5 videos -->
+
+                {% if category.videos|length > 5 %}
+                <div class="text-center mt-4 mb-3">
+                    <button type="button" class="btn btn-outline-primary btn-lg" data-bs-toggle="modal" data-bs-target="#modal-{{ cat_key }}">
+                        View All {{ category.videos|length - 5 }} Other Videos in {{ category.name }}
+                    </button>
                 </div>
+
+                <!-- Modal for {{ category.name }} -->
+                <div class="modal fade" id="modal-{{ cat_key }}" tabindex="-1" aria-labelledby="modalLabel-{{ cat_key }}" aria-hidden="true">
+                    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="modalLabel-{{ cat_key }}">{{ category.name }} - Additional Videos</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                                    {% for video in category.videos[5:] %} {# Videos from 6th onwards #}
+                                    <div class="col">
+                                        <div class="card h-100">
+                                            <div class="video-embed-container">
+                                                {% if video.platform == 'muse' %}
+                                                    <div class="muse-video-player" data-video="{{ video.video_id }}"></div>
+                                                {% elif video.platform == 'youtube' %}
+                                                    <iframe src="https://www.youtube.com/embed/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                                {% elif video.platform == 'vimeo' %}
+                                                    <iframe src="https://player.vimeo.com/video/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                                {% else %}
+                                                    <p class="p-2 text-danger">Cannot display: {{ video.title }} (Unsupported Platform)</p>
+                                                {% endif %}
+                                            </div>
+                                            <div class="card-body">
+                                                <h5 class="card-title">{{ video.title }}</h5>
+                                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                                    <button class="btn btn-outline-danger btn-sm like-button" data-video-id="{{ video.db_id }}">
+                                                        <i class="bi bi-heart"></i> Like
+                                                    </button>
+                                                    <span class="like-count ms-2" id="like-count-modal-{{ video.db_id }}">{{ video.likes }} like{{ 's' if video.likes != 1 else '' }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             </section>
             <hr class="my-5">
             {% endif %}
@@ -193,6 +309,71 @@
         var successModal = new bootstrap.Modal(document.getElementById('successModal'), {});
         successModal.show();
       }
+    </script>
+
+    <!-- Like Button Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const likeButtons = document.querySelectorAll('.like-button');
+
+            likeButtons.forEach(button => {
+                button.addEventListener('click', function () {
+                    const videoId = this.dataset.videoId;
+                    const isModalButton = this.closest('.modal') !== null; // Check if button is inside a modal
+                    const likeCountSpan = document.getElementById(isModalButton ? `like-count-modal-${videoId}` : `like-count-${videoId}`);
+                    const icon = this.querySelector('i');
+
+                    // Prevent multiple clicks while processing
+                    this.disabled = true; 
+                    icon.classList.remove('bi-heart');
+                    icon.classList.add('bi-heart-fill'); // Visually indicate click
+
+                    fetch(`/like_video/${videoId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            // If you add CSRF protection later, include the token here
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            if (likeCountSpan) {
+                                likeCountSpan.textContent = `${data.new_like_count} like${data.new_like_count !== 1 ? 's' : ''}`;
+                            }
+                            // Update other instances of this video's like count if they exist
+                            // For example, if a video is in "Most Liked" and also in a category
+                            const allSpansForThisVideo = document.querySelectorAll(`.like-count[id$='-${videoId}'], .like-count[id^='like-count-modal-${videoId}']`);
+                            allSpansForThisVideo.forEach(span => {
+                                if (span !== likeCountSpan) { // Don't re-update the one we just did
+                                     span.textContent = `${data.new_like_count} like${data.new_like_count !== 1 ? 's' : ''}`;
+                                }
+                            });
+                            // Could also update the button to show "Liked" or change icon permanently if desired
+                            icon.classList.add('bi-heart-fill'); // Keep it filled
+                            icon.classList.remove('bi-heart');
+                            // Re-enable after a short delay to prevent spamming, or keep disabled if you prefer "one like per page load"
+                            // setTimeout(() => { this.disabled = false; }, 500);
+                        } else {
+                            console.error('Error liking video:', data.error);
+                            alert('Could not like video: ' + data.error);
+                            // Revert visual indication on error
+                            icon.classList.remove('bi-heart-fill');
+                            icon.classList.add('bi-heart');
+                            this.disabled = false; // Re-enable on error
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Network error liking video:', error);
+                        alert('Network error. Could not like video.');
+                        // Revert visual indication on error
+                        icon.classList.remove('bi-heart-fill');
+                        icon.classList.add('bi-heart');
+                        this.disabled = false; // Re-enable on error
+                    });
+                });
+            });
+        });
     </script>
 
 </body>

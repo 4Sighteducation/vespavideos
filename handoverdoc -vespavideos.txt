@@ -1,0 +1,85 @@
+Project Handover: VESPA Video Marketing Page & Admin Panel
+1. Project Goal & Overview:
+Purpose: To provide a public-facing webpage displaying categorized video resources related to the VESPA (Vision, Effort, Systems, Practice, Attitude) framework and a "Revision Series." The application also includes a private admin panel for managing these video listings.
+Technology Stack:
+Backend: Python with Flask web framework.
+Frontend: HTML, Bootstrap 5, CSS, minimal JavaScript.
+Video Embedding: Supports Muse.ai, YouTube, and Vimeo.
+Data Storage: Initially data.json, now refactored to use a Supabase (PostgreSQL) database.
+Deployment: Heroku.
+Email Submission: Uses SendGrid for a "Request More Information" contact form.
+2. Current Application Structure & Build:
+Main Directory (VideoPage/):
+app.py: The core Flask application file. Contains all route definitions, database interaction logic, admin authentication, and email sending logic.
+templates/: Contains all HTML templates.
+index.html: Public-facing page displaying videos.
+admin_login.html: Login page for the admin panel.
+admin.html: Admin dashboard for adding videos and listing existing ones.
+admin_edit_video.html: Form for editing existing videos.
+static/: Contains static assets (e.g., style.css).
+.env: (Local only, in .gitignore) Stores environment variables like API keys, database URL, admin credentials for local development.
+requirements.txt: Lists Python package dependencies for the project. This has been recently rebuilt to be minimal and resolve Heroku slug size issues.
+Procfile: Defines the command Heroku uses to run the web application (e.g., web: gunicorn app:app).
+test_dns.py: (If kept) A utility script used for DNS diagnostics.
+data.json: (Now Obsolete for live data) Previously used for data storage. Data has been migrated to Supabase. Can be kept as a backup of the original data structure or removed.
+Supabase Database:
+Project: "VESPA Videos" (ID: hilpkmebnaqzadkyphtr) on Supabase.
+Tables:
+categories: Stores category information (key, name, color, description).
+videos: Stores video details (platform, platform-specific video ID, title, view count).
+video_category_assignments: A join table linking videos to categories (many-to-many).
+Connection: The Flask app connects to Supabase using a Session Pooler connection string stored in the DATABASE_URL environment variable (both locally in .env and as a Heroku Config Var). This was chosen to ensure IPv4 compatibility.
+Data Access: app.py uses the psycopg2-binary library to interact with the PostgreSQL database. All CRUD (Create, Read, Update, Delete) operations for videos and categories now use SQL queries to this database.
+Key Functionalities Implemented:
+Public display of videos categorized under VESPA pillars and a "Revision Series".
+A "Daily Featured Video" on the main page.
+A contact form that sends inquiries via SendGrid.
+Admin panel (/admin) with session-based login:
+View all videos.
+Add new videos (specifying platform, video ID, title, and categories).
+Edit existing videos (title and categories).
+Delete videos (with a JavaScript confirmation dialog).
+Recent Critical Fixes:
+Database Connection: Resolved complex issues connecting to Supabase from both local Windows environment and Heroku, ultimately using a Supabase pooler connection string and simplifying the database password.
+Heroku Slug Size: Rebuilt requirements.txt to include only essential packages, resolving the "slug size too large" deployment error on Heroku.
+Admin Form Submission: Fixed issues with malformed admin login form submissions on Heroku by correcting HTML attribute quoting in templates.
+URL Building: Corrected url_for parameters in admin templates to match updated route definitions.
+3. Build & Deployment Process:
+Local Development:
+Set up a Python virtual environment (venv).
+Install dependencies from requirements.txt using pip install -r requirements.txt.
+Ensure a .env file is present with necessary local environment variables (DATABASE_URL, FLASK_SECRET_KEY, ADMIN_USERNAME, ADMIN_PASSWORD, SENDGRID_API_KEY, RECIPIENT_EMAIL, SENDER_EMAIL).
+Run the app locally using python app.py.
+Version Control:
+Use Git for version control.
+Push changes to a main remote repository (e.g., GitHub: git push origin main).
+Heroku Deployment:
+Ensure Heroku Config Vars are set (DATABASE_URL, FLASK_SECRET_KEY, ADMIN_USERNAME, ADMIN_PASSWORD, SENDGRID_API_KEY, RECIPIENT_EMAIL, SENDER_EMAIL). The DATABASE_URL must be the Supabase pooler string.
+Push code to Heroku: git push heroku main. This triggers a build using requirements.txt and Procfile.
+4. User's Ideas for Future Changes & Enhancements:
+Monetization & Tiered Access:
+Free Tier: Offer 1 "teaser" video per category publicly.
+Individual Subscription Tier: Allow individual users to subscribe (paid) to unlock access to all videos. This would require:
+User account system (registration, login).
+Payment gateway integration (e.g., Stripe, PayPal).
+Subscription status tracking in the database.
+School/Institutional Tier:
+Allow schools to subscribe (potentially managed or linked via an existing Knack application).
+Grant full video access to users affiliated with a subscribed school. This would require a mechanism to identify and authenticate these users (e.g., API integration with Knack, token-based system, school admin management of user lists).
+Enhanced Video Management & Display:
+Viewing Stats: Track how many times each video has been "opened" or viewed.
+Requires adding a view_count mechanism (likely an endpoint in app.py called by frontend JavaScript, updating the view_count in the videos Supabase table).
+New Display Logic on Main Page:
+Show the top 3 most viewed videos for each category prominently.
+Place the remaining videos in each category behind a "View All" button.
+Clicking "View All" would open these additional videos, possibly in a modal dialog.
+UI Enhancements:
+Make the "Delete Video" confirmation dialog more visually prominent (e.g., using a custom Bootstrap modal instead of the default browser confirm()).
+Improve the obviousness of flashed success/error messages.
+Featured Video per Category (Implied by "1 video per section as a free tier"):
+A mechanism to designate a specific video as "featured" or "free teaser" for each category, possibly managed in the database.
+5. Important Considerations for Future Development:
+Database for Users: Implementing user accounts and subscriptions will necessitate adding user-related tables to the Supabase database.
+Security for User Data: Passwords must be securely hashed. RLS (Row Level Security) in Supabase should be enabled and configured for tables containing sensitive or user-specific data, especially if client-side access to Supabase is ever considered.
+Asynchronous Tasks: For things like sending emails or frequent view count updates, consider using background tasks (e.g., with Celery and Redis) to avoid blocking web requests, especially as traffic grows.
+Testing: Implement unit and integration tests.

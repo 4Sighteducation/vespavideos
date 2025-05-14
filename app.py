@@ -14,6 +14,9 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'your_default_secret_key_here_CHANGE_ME')
 
+# Define the key for the marketing promo category
+MARKETING_PROMO_CATEGORY_KEY = 'marketing_promo' # You can change this key if needed
+
 # Database Configuration
 DATABASE_URL = os.getenv('DATABASE_URL')
 if not DATABASE_URL:
@@ -77,8 +80,8 @@ def load_data():
                 'videos': [] # Initialize with an empty list for videos
             }
 
-        # 2. Fetch All Videos
-        cur.execute("SELECT id, platform, video_id_on_platform, title, view_count FROM videos ORDER BY id") # Added ORDER BY
+        # 2. Fetch All Videos (including the new 'likes' column)
+        cur.execute("SELECT id, platform, video_id_on_platform, title, view_count, likes FROM videos ORDER BY id") # Added ORDER BY and likes
         db_videos = cur.fetchall()
         for vid_row in db_videos:
             video_dict = {
@@ -88,6 +91,7 @@ def load_data():
                 'video_id_on_platform': vid_row['video_id_on_platform'], # Explicitly add for url_for debugging
                 'title': vid_row['title'],
                 'view_count': vid_row['view_count'],
+                'likes': vid_row['likes'], # Add likes count
                 'category_keys': [] # Initialize, will be populated from assignments
             }
             all_videos_list.append(video_dict)
@@ -141,11 +145,48 @@ def index():
     message = request.args.get('message')
     error = request.args.get('error')
     vespa_categories_data, all_videos_data = load_data()
+    
     featured_video = None
     if all_videos_data:
         day_of_year = datetime.date.today().timetuple().tm_yday
         featured_video = all_videos_data[(day_of_year - 1) % len(all_videos_data)]
-    return render_template('index.html', message=message, error=error, featured_video=featured_video, vespa_categories=vespa_categories_data, all_videos_data=all_videos_data, current_year=datetime.date.today().year)
+
+    marketing_promo_video = None
+    display_categories = {}
+    most_liked_videos = [] # Initialize list for most liked videos
+
+    if vespa_categories_data:
+        # Extract marketing promo video
+        if MARKETING_PROMO_CATEGORY_KEY in vespa_categories_data:
+            promo_category_data = vespa_categories_data[MARKETING_PROMO_CATEGORY_KEY]
+            if promo_category_data.get('videos'):
+                marketing_promo_video = promo_category_data['videos'][0] # Get the first video
+
+        # Prepare categories for display, excluding the marketing promo category from the main loop
+        for cat_key, cat_data in vespa_categories_data.items():
+            if cat_key != MARKETING_PROMO_CATEGORY_KEY:
+                display_categories[cat_key] = cat_data
+            # If you wanted the marketing promo category to also appear as a regular section
+            # in addition to its special spot, you would not filter it out here.
+            # However, current index.html design implies it's special.
+    
+    # Prepare most liked videos (after all_videos_data is populated with likes)
+    if all_videos_data:
+        # Sort videos by likes in descending order
+        sorted_videos_by_likes = sorted(all_videos_data, key=lambda v: v.get('likes', 0), reverse=True)
+        most_liked_videos = sorted_videos_by_likes[:3] # Get top 3 liked videos
+
+    return render_template(
+        'index.html', 
+        message=message, 
+        error=error, 
+        featured_video=featured_video, 
+        vespa_categories=display_categories, # Use the filtered list for the main sections
+        marketing_promo_video=marketing_promo_video, # Pass the special promo video
+        most_liked_videos=most_liked_videos, # Pass the most liked videos
+        all_videos_data=all_videos_data, # Still available if needed for other things
+        current_year=datetime.date.today().year
+    )
 
 @app.route('/submit', methods=['POST'])
 def submit_form():
@@ -192,14 +233,14 @@ def admin_logout():
 @app.route('/admin')
 @login_required
 def admin_dashboard():
-    _, all_videos = load_data()
-    try:
-        with open('data.json', 'r') as f: data = json.load(f)
-        categories_from_file = data.get('categories', {})
-    except (FileNotFoundError, json.JSONDecodeError) as e:
-        flash(f"Error loading categories for admin: {e}", "danger")
-        categories_from_file = {}
-    return render_template('admin.html', videos=all_videos, vespa_categories=categories_from_file, supported_platforms=SUPPORTED_PLATFORMS)
+    vespa_categories_from_db, all_videos = load_data() # Use load_data for categories too
+    
+    return render_template(
+        'admin.html', 
+        videos=all_videos, 
+        vespa_categories=vespa_categories_from_db, # Pass categories from database
+        supported_platforms=SUPPORTED_PLATFORMS
+    )
 
 @app.route('/admin/add_video', methods=['POST'])
 @login_required
@@ -413,6 +454,42 @@ def edit_video(platform, video_id_on_platform_from_url):
 # def migrate_data_to_db():
 #    # ... (migration code) ...
 #    pass
+
+@app.route('/like_video/<int:video_db_id>', methods=['POST'])
+def like_video(video_db_id):
+    if not video_db_id:
+        return jsonify({'success': False, 'error': 'Video ID not provided'}), 400
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Increment the likes count for the video
+        cur.execute(
+            "UPDATE videos SET likes = likes + 1 WHERE id = %s RETURNING likes",
+            (video_db_id,)
+        )
+        updated_likes = cur.fetchone()
+        
+        if updated_likes:
+            conn.commit()
+            return jsonify({'success': True, 'new_like_count': updated_likes[0]})
+        else:
+            # This case means the video_db_id didn't exist
+            conn.rollback() # Rollback if no update occurred
+            return jsonify({'success': False, 'error': 'Video not found'}), 404
+
+    except (psycopg2.Error, Exception) as e:
+        if conn:
+            conn.rollback()
+        print(f"Database error in like_video: {e}")
+        return jsonify({'success': False, 'error': 'Database error'}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True) 
