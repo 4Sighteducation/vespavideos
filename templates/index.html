@@ -27,7 +27,7 @@
             width: auto;
             margin-bottom: 15px;
         }
-        .video-embed-container { position: relative; padding-bottom: 56.25%; /* 16:9 aspect ratio */ height: 0; overflow: hidden; max-width: 100%; background: #000; margin-bottom: 1rem; }
+        .video-embed-container { position: relative; padding-bottom: 56.25%; /* 16:9 aspect ratio */ height: 0; overflow: hidden; max-width: 100%; /* background: #000; */ margin-bottom: 1rem; }
         .video-embed-container iframe, .video-embed-container .muse-video-player {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
         }
@@ -89,7 +89,7 @@
                 <h4 class="mb-3">{{ marketing_promo_video.title }}</h4>
                 {% endif %}
                 <!-- Adjusted video container for better responsiveness and smaller size -->
-                <div class="video-embed-container mx-auto" style="max-width: 600px; /* Smaller max-width */">
+                <div class="video-embed-container mx-auto" style="max-width: 480px; /* Further reduced max-width */">
                     {% if marketing_promo_video.platform == 'muse' %}
                         <div class="muse-video-player" data-video="{{ marketing_promo_video.video_id }}"></div>
                     {% elif marketing_promo_video.platform == 'youtube' %}

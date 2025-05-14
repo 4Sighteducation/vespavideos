@@ -276,13 +276,25 @@ def index():
             if promo_category_data.get('videos'):
                 marketing_promo_video = promo_category_data['videos'][0] # Get the first video
 
-        # Prepare categories for display, excluding the marketing promo category from the main loop
+        # Prepare categories for display, ensuring "Fresh New Vids" is first if it exists.
+        ordered_display_categories = []
+        fresh_vids_category_key = 'fresh_new_vids' # Key used in load_data
+
+        if fresh_vids_category_key in vespa_categories_data:
+            # Add Fresh New Vids first, and include its key for the template if needed
+            fresh_vids_data = vespa_categories_data[fresh_vids_category_key]
+            ordered_display_categories.append( (fresh_vids_category_key, fresh_vids_data) )
+
         for cat_key, cat_data in vespa_categories_data.items():
-            if cat_key != MARKETING_PROMO_CATEGORY_KEY:
-                display_categories[cat_key] = cat_data
-            # If you wanted the marketing promo category to also appear as a regular section
-            # in addition to its special spot, you would not filter it out here.
-            # However, current index.html design implies it's special.
+            if cat_key != MARKETING_PROMO_CATEGORY_KEY and cat_key != fresh_vids_category_key:
+                ordered_display_categories.append( (cat_key, cat_data) )
+        
+        # display_categories = {} # Original approach, replaced by ordered_display_categories
+        # for cat_key, cat_data in vespa_categories_data.items():
+        #     if cat_key != MARKETING_PROMO_CATEGORY_KEY:
+        #         display_categories[cat_key] = cat_data
+    else:
+        ordered_display_categories = [] # Ensure it's an empty list if vespa_categories_data is empty
     
     # Prepare most liked videos (after all_videos_data is populated with likes)
     if all_videos_data:
@@ -298,7 +310,7 @@ def index():
         message=message, 
         error=error, 
         featured_video=featured_video, # This is the old daily featured video, consider removing or repurposing
-        vespa_categories=display_categories, 
+        vespa_categories=ordered_display_categories, # Use the new ordered list
         marketing_promo_video=marketing_promo_video, 
         most_liked_videos=most_liked_videos, 
         all_videos_data=all_videos_data, 
