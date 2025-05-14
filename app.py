@@ -136,6 +136,7 @@ def load_featured_series_data():
     conn = None
     featured_series_info = None
     featured_series_top_videos = []
+    featured_series_all_videos = [] # Add list for all videos in the series
 
     try:
         conn = get_db_connection()
@@ -160,9 +161,8 @@ def load_featured_series_data():
                 LIMIT 3
             """, (featured_series_info['id'],))
             
-            video_rows = cur.fetchall()
-            for vid_row in video_rows:
-                # Construct video dict similar to how load_data does for consistency in templates
+            video_rows_top = cur.fetchall()
+            for vid_row in video_rows_top:
                 video_data = {
                     'db_id': vid_row['id'],
                     'platform': vid_row['platform'],
@@ -170,23 +170,42 @@ def load_featured_series_data():
                     'title': vid_row['title'],
                     'view_count': vid_row['view_count'],
                     'likes': vid_row['likes']
-                    # No need for category_keys here as these are for a specific series display
                 }
                 featured_series_top_videos.append(video_data)
+
+            # 3. Fetch ALL videos assigned to this series for the modal, ordered by display_order then title
+            cur.execute("""
+                SELECT v.id, v.platform, v.video_id_on_platform, v.title, v.view_count, v.likes, v.id as db_id
+                FROM videos v
+                JOIN video_series_assignments vsa ON v.id = vsa.video_db_id
+                WHERE vsa.series_db_id = %s
+                ORDER BY vsa.display_order ASC, v.title ASC, v.id ASC
+            """, (featured_series_info['id'],))
+
+            video_rows_all = cur.fetchall()
+            for vid_row in video_rows_all:
+                video_data_all = {
+                    'db_id': vid_row['id'],
+                    'platform': vid_row['platform'],
+                    'video_id': vid_row['video_id_on_platform'],
+                    'title': vid_row['title'],
+                    'view_count': vid_row['view_count'],
+                    'likes': vid_row['likes']
+                }
+                featured_series_all_videos.append(video_data_all)
+
         # else: No featured series found, variables will remain None/empty list
 
     except (psycopg2.Error, Exception) as e:
-        # flash(f"Database error loading featured series data: {e}", "danger") # Flashing from here might be tricky if not in request context
         print(f"Database error in load_featured_series_data: {e}")
-        # Return empty structures on error
-        return None, [] 
+        return None, [], [] # Return three values now
     finally:
         if conn:
-            if cur: # Check if cur was initialized
+            if cur: 
                 cur.close()
             conn.close()
     
-    return featured_series_info, featured_series_top_videos
+    return featured_series_info, featured_series_top_videos, featured_series_all_videos # Return all three
 
 def login_required(f):
     @wraps(f)
@@ -234,7 +253,7 @@ def index():
         most_liked_videos = sorted_videos_by_likes[:3] # Get top 3 liked videos
 
     # Load featured series data
-    featured_series_info, featured_series_top_videos = load_featured_series_data()
+    featured_series_info, featured_series_top_videos, featured_series_all_videos = load_featured_series_data()
 
     return render_template(
         'index.html', 
@@ -245,8 +264,9 @@ def index():
         marketing_promo_video=marketing_promo_video, 
         most_liked_videos=most_liked_videos, 
         all_videos_data=all_videos_data, 
-        featured_series_info=featured_series_info, # Pass featured series details
-        featured_series_top_videos=featured_series_top_videos, # Pass its top videos
+        featured_series_info=featured_series_info, 
+        featured_series_top_videos=featured_series_top_videos,
+        featured_series_all_videos=featured_series_all_videos, # Pass all series videos
         current_year=datetime.date.today().year
     )
 
@@ -359,15 +379,43 @@ def add_video():
         if existing_video_row:
             video_db_id_to_use = existing_video_row[0]
             was_existing_video = True
-            # If it's an existing video, we might want to update its title too if a new one is provided
-            # For now, the simplest approach is to update assignments. Title update for existing can be a future enhancement here if needed.
-            # Or, direct users to the "Edit Video" page for title changes of existing videos.
-            # We will clear its old assignments first before adding new ones.
-            cur.execute("DELETE FROM video_category_assignments WHERE video_db_id = %s", (video_db_id_to_use,))
-            cur.execute("DELETE FROM video_series_assignments WHERE video_db_id = %s", (video_db_id_to_use,))
-            # flash(f'Video '{title}' already exists. Updating its assignments.', 'info') # Optional info flash
-        else:
-            # Insert new video and get its database ID
+            # If it's an existing video, its title is NOT updated here. Users should use Edit for that.
+            # We only update assignments if new ones are provided in the form.
+
+            # Handle Category Assignments for Existing Video
+            if category_keys_from_form: # Only update categories if new ones are actually submitted
+                cur.execute("DELETE FROM video_category_assignments WHERE video_db_id = %s", (video_db_id_to_use,))
+                for cat_key in category_keys_from_form:
+                    try:
+                        cur.execute(
+                            "INSERT INTO video_category_assignments (video_db_id, category_db_key) VALUES (%s, %s)",
+                            (video_db_id_to_use, cat_key)
+                        )
+                    except psycopg2.errors.ForeignKeyViolation:
+                        flash(f"Warning: Could not assign category '{cat_key}' to video '{title}'. Category might not exist.", "warning")
+                    except psycopg2.errors.UniqueViolation:
+                        pass # Should be fine since we deleted first
+            # If category_keys_from_form is empty, existing categories are preserved.
+
+            # Handle Series Assignments for Existing Video
+            if series_ids_from_form: # Only update series if new ones are actually submitted
+                cur.execute("DELETE FROM video_series_assignments WHERE video_db_id = %s", (video_db_id_to_use,))
+                for series_id_str in series_ids_from_form:
+                    try:
+                        series_id = int(series_id_str)
+                        cur.execute(
+                            "INSERT INTO video_series_assignments (video_db_id, series_db_id) VALUES (%s, %s)",
+                            (video_db_id_to_use, series_id)
+                        )
+                    except psycopg2.errors.ForeignKeyViolation:
+                        flash(f"Warning: Could not assign series ID '{series_id}' to video '{title}'. Series might not exist.", "warning")
+                    except psycopg2.errors.UniqueViolation:
+                        pass # Should be fine
+                    except ValueError:
+                        flash(f"Warning: Invalid series ID '{series_id_str}' provided for existing video.", "warning")
+            # If series_ids_from_form is empty, existing series are preserved.
+
+        else: # Video does not exist, create it new
             cur.execute(
                 "INSERT INTO videos (platform, video_id_on_platform, title) VALUES (%s, %s, %s) RETURNING id",
                 (platform, video_id_on_platform, title)
@@ -380,36 +428,36 @@ def add_video():
                 conn.rollback()
                 flash('Error creating new video record.', 'danger')
                 return redirect(url_for('admin_dashboard'))
+            
+            # For new videos, assign categories and series as submitted
+            if video_db_id_to_use and category_keys_from_form:
+                for cat_key in category_keys_from_form:
+                    try:
+                        cur.execute(
+                            "INSERT INTO video_category_assignments (video_db_id, category_db_key) VALUES (%s, %s)",
+                            (video_db_id_to_use, cat_key)
+                        )
+                    except psycopg2.errors.ForeignKeyViolation:
+                        flash(f"Warning: Could not assign category '{cat_key}' to new video '{title}'. Category might not exist.", "warning")
+                    except psycopg2.errors.UniqueViolation:
+                        flash(f"Warning: New video '{title}' already assigned to category '{cat_key}'. (Should be rare)", "warning")
+            
+            if video_db_id_to_use and series_ids_from_form:
+                for series_id_str in series_ids_from_form:
+                    try:
+                        series_id = int(series_id_str)
+                        cur.execute(
+                            "INSERT INTO video_series_assignments (video_db_id, series_db_id) VALUES (%s, %s)",
+                            (video_db_id_to_use, series_id)
+                        )
+                    except psycopg2.errors.ForeignKeyViolation:
+                        flash(f"Warning: Could not assign series ID '{series_id}' to new video '{title}'. Series might not exist.", "warning")
+                    except psycopg2.errors.UniqueViolation:
+                        flash(f"Warning: New video '{title}' already assigned to series ID '{series_id}'. (Should be rare)", "warning")
+                    except ValueError:
+                        flash(f"Warning: Invalid series ID '{series_id_str}' provided for new video.", "warning")
 
-        # Assign categories
-        if video_db_id_to_use and category_keys_from_form:
-            for cat_key in category_keys_from_form:
-                try:
-                    cur.execute(
-                        "INSERT INTO video_category_assignments (video_db_id, category_db_key) VALUES (%s, %s)",
-                        (video_db_id_to_use, cat_key)
-                    )
-                except psycopg2.errors.ForeignKeyViolation:
-                    flash(f"Warning: Could not assign category '{cat_key}' to video '{title}'. Category might not exist.", "warning")
-                except psycopg2.errors.UniqueViolation: # Should not happen if we delete first for existing videos
-                    flash(f"Warning: Video '{title}' already assigned to category '{cat_key}'. (This shouldn't happen if logic is correct)", "warning")
-        
-        # Assign series
-        if video_db_id_to_use and series_ids_from_form:
-            for series_id_str in series_ids_from_form: # Renamed to avoid conflict with outer scope if any
-                try:
-                    series_id = int(series_id_str)
-                    cur.execute(
-                        "INSERT INTO video_series_assignments (video_db_id, series_db_id) VALUES (%s, %s)",
-                        (video_db_id_to_use, series_id)
-                    )
-                except psycopg2.errors.ForeignKeyViolation:
-                    flash(f"Warning: Could not assign series ID '{series_id}' to video '{title}'. Series might not exist.", "warning")
-                except psycopg2.errors.UniqueViolation: # Should not happen if we delete first
-                    flash(f"Warning: Video '{title}' already assigned to series ID '{series_id}'. (This shouldn't happen)", "warning")
-                except ValueError:
-                    flash(f"Warning: Invalid series ID '{series_id_str}' provided.", "warning")
-
+        # Commit happens outside the if/else for existing/new video logic
         conn.commit()
         if was_existing_video:
             flash(f'Assignments for existing video \'{title}\' updated successfully!', 'success')

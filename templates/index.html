@@ -77,7 +77,7 @@
                 <h4 class="mb-3">{{ marketing_promo_video.title }}</h4>
                 {% endif %}
                 <!-- Adjusted video container for better responsiveness and smaller size -->
-                <div class="video-embed-container mx-auto" style="max-width: 600px; /* Smaller max-width */ background-color: #000;">
+                <div class="video-embed-container mx-auto" style="max-width: 600px; /* Smaller max-width */">
                     {% if marketing_promo_video.platform == 'muse' %}
                         <div class="muse-video-player" data-video="{{ marketing_promo_video.video_id }}"></div>
                     {% elif marketing_promo_video.platform == 'youtube' %}
@@ -164,6 +164,13 @@
                 </div>
                 {% endfor %}
             </div>
+            {% if featured_series_all_videos|length > 0 %}
+            <div class="text-center mt-4 mb-3">
+                <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#modal-featured-series">
+                    View all videos in {{ featured_series_info.name }}
+                </button>
+            </div>
+            {% endif %}
         </section>
         <hr class="my-5">
         {% elif featured_series_info %} 
@@ -175,6 +182,54 @@
             <p class="text-center text-muted">No videos currently available in this series.</p>
         </section>
         <hr class="my-5">
+        {% endif %}
+
+        <!-- Modal for Featured Series -->
+        {% if featured_series_info and featured_series_all_videos %}
+        <div class="modal fade" id="modal-featured-series" tabindex="-1" aria-labelledby="modalLabel-featured-series" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalLabel-featured-series">{{ featured_series_info.name }} - All Videos</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                            {% for video in featured_series_all_videos %}
+                            <div class="col">
+                                <div class="card h-100">
+                                    <div class="video-embed-container">
+                                        {% if video.platform == 'muse' %}
+                                            <div class="muse-video-player" data-video="{{ video.video_id }}"></div>
+                                        {% elif video.platform == 'youtube' %}
+                                            <iframe src="https://www.youtube.com/embed/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                        {% elif video.platform == 'vimeo' %}
+                                            <iframe src="https://player.vimeo.com/video/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                        {% else %}
+                                            <p class="p-2 text-danger">Cannot display: {{ video.title }} (Unsupported Platform)</p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="card-body">
+                                        <h5 class="card-title">{{ video.title }}</h5>
+                                        <div class="d-flex justify-content-between align-items-center mt-2">
+                                            <button class="btn btn-outline-danger btn-sm like-button" data-video-id="{{ video.db_id }}">
+                                                <i class="bi bi-heart"></i> Like
+                                            </button>
+                                            <!-- Ensure unique ID for like counts in this modal -->
+                                            <span class="like-count ms-2" id="like-count-series-modal-{{ video.db_id }}">{{ video.likes }} like{{ 's' if video.likes != 1 else '' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
         {% endif %}
 
         <!-- VESPA Categories & Videos -->
@@ -214,10 +269,12 @@
                     {% endfor %}
                 </div> <!-- Closes the row for top 5 videos -->
 
-                {% if category.videos|length > 5 %}
+                {% if category.videos|length > 0 %}
                 <div class="text-center mt-4 mb-3">
-                    <button type="button" class="btn btn-outline-primary btn-lg" data-bs-toggle="modal" data-bs-target="#modal-{{ cat_key }}">
-                        View All {{ category.videos|length - 5 }} Other Videos in {{ category.name }}
+                    <button type="button" class="btn btn-lg text-white" 
+                            style="background-color: {{ category.color }}; border-color: {{ category.color }};" 
+                            data-bs-toggle="modal" data-bs-target="#modal-{{ cat_key }}">
+                        View all videos in {{ category.name }}
                     </button>
                 </div>
 
@@ -226,12 +283,12 @@
                     <div class="modal-dialog modal-xl modal-dialog-scrollable">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title" id="modalLabel-{{ cat_key }}">{{ category.name }} - Additional Videos</h5>
+                                <h5 class="modal-title" id="modalLabel-{{ cat_key }}">{{ category.name }} - All Videos</h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
                                 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-                                    {% for video in category.videos[5:] %} {# Videos from 6th onwards #}
+                                    {% for video in category.videos %} {# Show ALL videos in this category #}
                                     <div class="col">
                                         <div class="card h-100">
                                             <div class="video-embed-container">
@@ -360,12 +417,25 @@
             likeButtons.forEach(button => {
                 button.addEventListener('click', function () {
                     const videoId = this.dataset.videoId;
-                    const isModalButton = this.closest('.modal') !== null; // Check if button is inside a modal
+                    const isModalButton = this.closest('.modal') !== null;
                     const likeCountSpanIdBase = `like-count-${videoId}`;
-                    const likeCountSpanIdModal = `like-count-modal-${videoId}`;
-                    const likeCountSpanIdSeries = `like-count-series-${videoId}`;
+                    const likeCountSpanIdModalRegular = `like-count-modal-${videoId}`;
+                    const likeCountSpanIdSeriesDirect = `like-count-series-${videoId}`;
+                    const likeCountSpanIdSeriesModal = `like-count-series-modal-${videoId}`;
 
-                    const likeCountSpan = document.getElementById(isModalButton ? likeCountSpanIdModal : (this.closest('.featured-series-section') ? likeCountSpanIdSeries : likeCountSpanIdBase) );
+                    let targetSpanId;
+                    if (isModalButton) {
+                        if (this.closest('#modal-featured-series')) {
+                            targetSpanId = likeCountSpanIdSeriesModal;
+                        } else {
+                            targetSpanId = likeCountSpanIdModalRegular;
+                        }
+                    } else if (this.closest('.featured-series-section')) {
+                        targetSpanId = likeCountSpanIdSeriesDirect;
+                    } else {
+                        targetSpanId = likeCountSpanIdBase;
+                    }
+                    const likeCountSpan = document.getElementById(targetSpanId);
                     const icon = this.querySelector('i');
 
                     // Prevent multiple clicks while processing
@@ -387,11 +457,11 @@
                                 likeCountSpan.textContent = `${data.new_like_count} like${data.new_like_count !== 1 ? 's' : ''}`;
                             }
                             // Update other instances of this video's like count if they exist
-                            // For example, if a video is in "Most Liked" and also in a category or featured series
                             const allSpansForThisVideo = document.querySelectorAll(
                                 `.like-count[id='${likeCountSpanIdBase}'], 
-                                 .like-count[id='${likeCountSpanIdModal}'], 
-                                 .like-count[id='${likeCountSpanIdSeries}']`
+                                 .like-count[id='${likeCountSpanIdModalRegular}'], 
+                                 .like-count[id='${likeCountSpanIdSeriesDirect}'],
+                                 .like-count[id='${likeCountSpanIdSeriesModal}']`
                                  );
                             allSpansForThisVideo.forEach(span => {
                                 if (span !== likeCountSpan) { // Don't re-update the one we just did
