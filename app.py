@@ -387,6 +387,78 @@ def load_featured_series_data():
     
     return featured_series_info, featured_series_top_videos, featured_series_all_videos # Return all three
 
+def load_series_videos_for_site(series_key, site_key=None):
+    """
+    Load a specific series (by series_key) and its videos.
+    If site_key is provided and video_site_assignments exists, videos are filtered to that site.
+    """
+    conn = None
+    cur = None
+    series_info = None
+    series_videos = []
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        cur.execute(
+            "SELECT id, series_key, name, description FROM series WHERE series_key = %s LIMIT 1",
+            (series_key,)
+        )
+        row = cur.fetchone()
+        if not row:
+            return None, []
+
+        series_info = dict(row)
+
+        site_assignments_enabled = _video_site_assignments_enabled(cur)
+        if site_key and (not site_assignments_enabled) and site_key != "vespa":
+            # Sister sites should not accidentally show everything before the migration is applied
+            return series_info, []
+
+        join_site = ""
+        where_site = ""
+        params = [series_info["id"]]
+        if site_key and site_assignments_enabled:
+            join_site = "JOIN video_site_assignments vsite ON v.id = vsite.video_db_id"
+            where_site = "AND vsite.site_key = %s"
+            params.append(site_key)
+
+        cur.execute(
+            f"""
+            SELECT v.id, v.platform, v.video_id_on_platform, v.title, v.view_count, v.likes, v.id as db_id
+            FROM videos v
+            JOIN video_series_assignments vsa ON v.id = vsa.video_db_id
+            {join_site}
+            WHERE vsa.series_db_id = %s
+            {where_site}
+            ORDER BY vsa.display_order ASC, v.likes DESC, v.id ASC
+            """,
+            tuple(params)
+        )
+
+        for vid_row in cur.fetchall():
+            series_videos.append({
+                "db_id": vid_row["id"],
+                "platform": vid_row["platform"],
+                "video_id": vid_row["video_id_on_platform"],
+                "video_id_on_platform": vid_row["video_id_on_platform"],
+                "title": vid_row["title"],
+                "view_count": vid_row["view_count"],
+                "likes": vid_row["likes"],
+            })
+
+    except (psycopg2.Error, Exception) as e:
+        print(f"Database error in load_series_videos_for_site({series_key}): {e}")
+        return None, []
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+    return series_info, series_videos
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -446,8 +518,24 @@ def index():
         sorted_videos_by_likes = sorted(all_videos_data, key=lambda v: v.get('likes', 0), reverse=True)
         most_liked_videos = sorted_videos_by_likes[:3] # Get top 3 liked videos
 
-    # Load featured series data
+    # Load featured series data (VESPA homepage uses this; CSC template currently ignores it)
     featured_series_info, featured_series_top_videos, featured_series_all_videos = load_featured_series_data()
+
+    # CSC homepage: two audience sections using series keys
+    csc_student_series_info = None
+    csc_student_series_videos = []
+    csc_staff_series_info = None
+    csc_staff_series_videos = []
+
+    if site_ctx.get("site_key") == "csc":
+        csc_student_series_info, csc_student_series_videos = load_series_videos_for_site(
+            "csc_students",
+            site_key=site_ctx.get("site_key")
+        )
+        csc_staff_series_info, csc_staff_series_videos = load_series_videos_for_site(
+            "csc_staff",
+            site_key=site_ctx.get("site_key")
+        )
 
     template_name = 'csc_index.html' if site_ctx.get("site_key") == "csc" else 'index.html'
 
@@ -463,6 +551,10 @@ def index():
         featured_series_info=featured_series_info, 
         featured_series_top_videos=featured_series_top_videos,
         featured_series_all_videos=featured_series_all_videos, # Pass all series videos
+        csc_student_series_info=csc_student_series_info,
+        csc_student_series_videos=csc_student_series_videos,
+        csc_staff_series_info=csc_staff_series_info,
+        csc_staff_series_videos=csc_staff_series_videos,
         all_problems=all_problems_for_filter, # Pass problems to template
         current_year=datetime.date.today().year,
         **site_ctx

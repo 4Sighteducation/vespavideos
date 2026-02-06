@@ -61,9 +61,220 @@
             </p>
         </section>
 
+        <!-- Audience Sections -->
+        <section id="student-videos" class="mb-5 p-4 bg-white rounded border shadow-sm">
+            <h2 class="mb-2"><i class="bi bi-people-fill me-2"></i>Student videos</h2>
+            <p class="text-muted mb-4">Videos intended to be shared with students by staff.</p>
+
+            {% if csc_student_series_info and csc_student_series_videos %}
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                    {% for video in csc_student_series_videos[:3] %}
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="video-embed-container">
+                                {% if video.platform == 'muse' %}
+                                    <iframe
+                                        src="https://muse.ai/embed/{{ video.video_id_on_platform }}?cover_play_position=center&autoplay=0&loop=0"
+                                        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
+                                        frameborder="0"
+                                        allowfullscreen
+                                        allow="autoplay; fullscreen">
+                                    </iframe>
+                                {% elif video.platform == 'youtube' %}
+                                    <iframe src="https://www.youtube.com/embed/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                {% elif video.platform == 'vimeo' %}
+                                    <iframe src="https://player.vimeo.com/video/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                {% else %}
+                                    <p class="p-2 text-danger">Cannot display: {{ video.title }} (Unsupported Platform)</p>
+                                {% endif %}
+                            </div>
+                            <div class="card-body">
+                                <h5 class="card-title">{{ video.title }}</h5>
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <button class="btn btn-outline-danger btn-sm like-button" data-video-id="{{ video.db_id }}">
+                                        <i class="bi bi-heart"></i> Like
+                                    </button>
+                                    <span class="like-count ms-2" id="like-count-student-{{ video.db_id }}">{{ video.likes }} like{{ 's' if video.likes != 1 else '' }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% if csc_student_series_videos|length > 3 %}
+                    <div class="text-center mt-4">
+                        <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#modal-csc-students">
+                            View all student videos
+                        </button>
+                    </div>
+
+                    <div class="modal fade" id="modal-csc-students" tabindex="-1" aria-labelledby="modalLabel-csc-students" aria-hidden="true">
+                        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="modalLabel-csc-students">Student videos — all</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                                        {% for video in csc_student_series_videos %}
+                                        <div class="col">
+                                            <div class="card h-100">
+                                                <div class="video-embed-container">
+                                                    {% if video.platform == 'muse' %}
+                                                        <iframe
+                                                            src="https://muse.ai/embed/{{ video.video_id_on_platform }}?cover_play_position=center&autoplay=0&loop=0"
+                                                            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
+                                                            frameborder="0"
+                                                            allowfullscreen
+                                                            allow="autoplay; fullscreen">
+                                                        </iframe>
+                                                    {% elif video.platform == 'youtube' %}
+                                                        <iframe src="https://www.youtube.com/embed/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                                    {% elif video.platform == 'vimeo' %}
+                                                        <iframe src="https://player.vimeo.com/video/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                                    {% else %}
+                                                        <p class="p-2 text-danger">Cannot display: {{ video.title }} (Unsupported Platform)</p>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="card-body">
+                                                    <h5 class="card-title">{{ video.title }}</h5>
+                                                    <div class="d-flex justify-content-between align-items-center mt-2">
+                                                        <button class="btn btn-outline-danger btn-sm like-button" data-video-id="{{ video.db_id }}">
+                                                            <i class="bi bi-heart"></i> Like
+                                                        </button>
+                                                        <span class="like-count ms-2" id="like-count-student-modal-{{ video.db_id }}">{{ video.likes }} like{{ 's' if video.likes != 1 else '' }}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="alert alert-secondary mb-0">
+                    No student videos yet. Create a series with key <code>csc_students</code> in the admin area and assign CSC videos to it.
+                </div>
+            {% endif %}
+        </section>
+
+        <section id="staff-videos" class="mb-5 p-4 bg-white rounded border shadow-sm">
+            <h2 class="mb-2"><i class="bi bi-mortarboard-fill me-2"></i>Staff training videos</h2>
+            <p class="text-muted mb-4">Videos intended for staff CPD and implementation support.</p>
+
+            {% if csc_staff_series_info and csc_staff_series_videos %}
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                    {% for video in csc_staff_series_videos[:3] %}
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="video-embed-container">
+                                {% if video.platform == 'muse' %}
+                                    <iframe
+                                        src="https://muse.ai/embed/{{ video.video_id_on_platform }}?cover_play_position=center&autoplay=0&loop=0"
+                                        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
+                                        frameborder="0"
+                                        allowfullscreen
+                                        allow="autoplay; fullscreen">
+                                    </iframe>
+                                {% elif video.platform == 'youtube' %}
+                                    <iframe src="https://www.youtube.com/embed/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                {% elif video.platform == 'vimeo' %}
+                                    <iframe src="https://player.vimeo.com/video/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                {% else %}
+                                    <p class="p-2 text-danger">Cannot display: {{ video.title }} (Unsupported Platform)</p>
+                                {% endif %}
+                            </div>
+                            <div class="card-body">
+                                <h5 class="card-title">{{ video.title }}</h5>
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <button class="btn btn-outline-danger btn-sm like-button" data-video-id="{{ video.db_id }}">
+                                        <i class="bi bi-heart"></i> Like
+                                    </button>
+                                    <span class="like-count ms-2" id="like-count-staff-{{ video.db_id }}">{{ video.likes }} like{{ 's' if video.likes != 1 else '' }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% if csc_staff_series_videos|length > 3 %}
+                    <div class="text-center mt-4">
+                        <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#modal-csc-staff">
+                            View all staff training videos
+                        </button>
+                    </div>
+
+                    <div class="modal fade" id="modal-csc-staff" tabindex="-1" aria-labelledby="modalLabel-csc-staff" aria-hidden="true">
+                        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="modalLabel-csc-staff">Staff training videos — all</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                                        {% for video in csc_staff_series_videos %}
+                                        <div class="col">
+                                            <div class="card h-100">
+                                                <div class="video-embed-container">
+                                                    {% if video.platform == 'muse' %}
+                                                        <iframe
+                                                            src="https://muse.ai/embed/{{ video.video_id_on_platform }}?cover_play_position=center&autoplay=0&loop=0"
+                                                            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
+                                                            frameborder="0"
+                                                            allowfullscreen
+                                                            allow="autoplay; fullscreen">
+                                                        </iframe>
+                                                    {% elif video.platform == 'youtube' %}
+                                                        <iframe src="https://www.youtube.com/embed/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                                    {% elif video.platform == 'vimeo' %}
+                                                        <iframe src="https://player.vimeo.com/video/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                                    {% else %}
+                                                        <p class="p-2 text-danger">Cannot display: {{ video.title }} (Unsupported Platform)</p>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="card-body">
+                                                    <h5 class="card-title">{{ video.title }}</h5>
+                                                    <div class="d-flex justify-content-between align-items-center mt-2">
+                                                        <button class="btn btn-outline-danger btn-sm like-button" data-video-id="{{ video.db_id }}">
+                                                            <i class="bi bi-heart"></i> Like
+                                                        </button>
+                                                        <span class="like-count ms-2" id="like-count-staff-modal-{{ video.db_id }}">{{ video.likes }} like{{ 's' if video.likes != 1 else '' }}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            {% else %}
+                <div class="alert alert-secondary mb-0">
+                    No staff training videos yet. Create a series with key <code>csc_staff</code> in the admin area and assign CSC videos to it.
+                </div>
+            {% endif %}
+        </section>
+
+        <hr class="my-5">
+
         <!-- Category Navigation Buttons -->
         <section class="category-nav-buttons text-center mb-5">
-            <h3 class="mb-3">Quick Navigation</h3>
+            <h3 class="mb-3">Browse by VESPA themes</h3>
             <div class="btn-group flex-wrap" role="group" aria-label="Category quick navigation">
                 {% set excluded_cats_for_nav = ['marketing_promo'] %}
                 {% for cat_key, category_data in vespa_categories %}
