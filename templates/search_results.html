@@ -40,6 +40,10 @@
                         </div>
                         <div class="card-body">
                             <h5 class="card-title">{{ video.title }}</h5>
+                            {% if video.platform == 'muse' %}
+                                {% set muse_id = video.video_id_on_platform %}
+                                {% include '_muse_view_links.html' %}
+                            {% endif %}
                             <p class="card-text small text-muted">
                                 Platform: {{ video.platform | capitalize }}<br>
                                 Likes: {{ video.likes | default(0) }}

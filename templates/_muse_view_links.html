@@ -1,0 +1,26 @@
+{# Reusable Muse view links (open in new tab) #}
+{# Requires: muse_id #}
+<div class="btn-group btn-group-sm mt-2" role="group" aria-label="Muse video view options">
+  <a class="btn btn-outline-secondary"
+     href="https://muse.ai/vc/{{ muse_id }}"
+     target="_blank"
+     rel="noopener"
+     title="Muse: Video only view">
+    Video only
+  </a>
+  <a class="btn btn-outline-secondary"
+     href="https://muse.ai/vd/{{ muse_id }}"
+     target="_blank"
+     rel="noopener"
+     title="Muse: Video and info view">
+    Info
+  </a>
+  <a class="btn btn-outline-secondary"
+     href="https://muse.ai/vt/{{ muse_id }}"
+     target="_blank"
+     rel="noopener"
+     title="Muse: Video and speech/transcript view">
+    Speech
+  </a>
+</div>
+
