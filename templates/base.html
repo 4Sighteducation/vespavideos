@@ -48,6 +48,17 @@
                         {# Add other common navigation links here if needed #}
                         {# e.g., <li class="nav-item"><a class="nav-link" href="{{ url_for('about') }}">About</a></li> #}
                     </ul>
+                    {% if site_key == 'csc' %}
+                        <a class="d-none d-lg-inline-flex align-items-center text-decoration-none me-3"
+                           href="https://www.vespa.academy"
+                           target="_blank"
+                           rel="noopener">
+                            <img src="https://www.vespa.academy/assets/images/full-trimmed-transparent-customcolor-1-832x947.png"
+                                 alt="VESPA Academy"
+                                 style="max-height: 26px;">
+                            <span class="ms-2 text-muted">Powered by VESPA Academy</span>
+                        </a>
+                    {% endif %}
                     <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#searchModal">
                         <i class="bi bi-search"></i> Search
                     </button>

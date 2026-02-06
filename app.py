@@ -53,7 +53,7 @@ def get_site_context_from_request():
     host = (request.host or "").split(":")[0].lower()
 
     # CSC sister site
-    if host == "cscvideos.vespa.academy" or host.startswith("cscvideos."):
+    if host.endswith("cscvideos.vespa.academy"):
         # Prefer an explicit URL (e.g., hosted on your CMS) but fall back to
         # serving the committed logo file from this app.
         csc_logo_url = os.getenv("CSC_LOGO_URL") or url_for("csc_logo")
@@ -169,6 +169,7 @@ def load_data(site_key=None):
                 """,
                 (site_key,)
             )
+            db_videos = cur.fetchall()
         elif site_key and not site_assignments_enabled and site_key != "vespa":
             # For non-default sister sites, if the migration hasn't been applied yet,
             # return no videos rather than accidentally showing the full library.
