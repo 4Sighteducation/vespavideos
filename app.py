@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash, send_from_directory
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 from dotenv import load_dotenv
@@ -32,12 +32,73 @@ SUPPORTED_PLATFORMS = {
     'vimeo': 'Vimeo'
 }
 
+# Public site keys we support (used by admin UI too)
+AVAILABLE_SITES = {
+    'vespa': 'VESPA Videos',
+    'csc': 'Central South Consortium (CSC) Videos'
+}
+
 SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
 RECIPIENT_EMAIL = os.getenv('RECIPIENT_EMAIL')
 SENDER_EMAIL = os.getenv('SENDER_EMAIL', RECIPIENT_EMAIL)
 
 if not SENDGRID_API_KEY: print("Error: SENDGRID_API_KEY not found")
 if not RECIPIENT_EMAIL: print("Error: RECIPIENT_EMAIL not found")
+
+def get_site_context_from_request():
+    """
+    Lightweight host-based "multi-site" support.
+    Allows a sister public page on a different subdomain, using the same app + DB.
+    """
+    host = (request.host or "").split(":")[0].lower()
+
+    # CSC sister site
+    if host == "cscvideos.vespa.academy" or host.startswith("cscvideos."):
+        # Prefer an explicit URL (e.g., hosted on your CMS) but fall back to
+        # serving the committed logo file from this app.
+        csc_logo_url = os.getenv("CSC_LOGO_URL") or url_for("csc_logo")
+        return {
+            "site_key": "csc",
+            "site_nav_title": "CSC Videos",
+            "site_logo_url": csc_logo_url,
+            "site_header_logo_url": csc_logo_url,
+        }
+
+    # Default VESPA site
+    return {
+        "site_key": "vespa",
+        "site_nav_title": "VESPA Videos",
+        "site_logo_url": None,
+        "site_header_logo_url": None,
+    }
+
+@app.route("/client-assets/csc-logo")
+def csc_logo():
+    """
+    Serves the CSC logo committed in the repo root.
+    (This avoids needing a separate asset host just for the logo.)
+    """
+    filename = "CSC Logo RGB.jpg"
+    return send_from_directory(app.root_path, filename, max_age=60 * 60 * 24 * 7)
+
+def _video_site_assignments_enabled(cur) -> bool:
+    """
+    Returns True if the database has the video_site_assignments table.
+    Lets the app run safely before/without the migration.
+    """
+    try:
+        cur.execute(
+            """
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+              AND table_name = 'video_site_assignments'
+            LIMIT 1
+            """
+        )
+        return cur.fetchone() is not None
+    except Exception:
+        return False
 
 def get_db_connection():
     """Establishes a connection to the PostgreSQL database."""
@@ -58,8 +119,11 @@ def get_db_connection():
         # For now, let's re-raise to make it obvious during development if connection fails.
         raise
 
-def load_data():
-    """Loads categories, videos (including keywords and problems) from the Supabase PostgreSQL database."""
+def load_data(site_key=None):
+    """Loads categories, videos (including keywords and problems) from the Supabase PostgreSQL database.
+
+    If site_key is provided, videos are filtered to those assigned to that site (when the DB supports it).
+    """
     conn = None
     categories_map = {}
     all_videos_list = []
@@ -92,8 +156,27 @@ def load_data():
             }
 
         # 2. Fetch All Videos (including keywords, likes, created_at)
-        cur.execute("SELECT id, platform, video_id_on_platform, title, view_count, likes, created_at, keywords FROM videos ORDER BY id")
-        db_videos = cur.fetchall()
+        #    Optionally filter by site assignment if enabled.
+        site_assignments_enabled = _video_site_assignments_enabled(cur)
+        if site_key and site_assignments_enabled:
+            cur.execute(
+                """
+                SELECT v.id, v.platform, v.video_id_on_platform, v.title, v.view_count, v.likes, v.created_at, v.keywords
+                FROM videos v
+                JOIN video_site_assignments vsa ON v.id = vsa.video_db_id
+                WHERE vsa.site_key = %s
+                ORDER BY v.id
+                """,
+                (site_key,)
+            )
+        elif site_key and not site_assignments_enabled and site_key != "vespa":
+            # For non-default sister sites, if the migration hasn't been applied yet,
+            # return no videos rather than accidentally showing the full library.
+            db_videos = []
+        else:
+            cur.execute("SELECT id, platform, video_id_on_platform, title, view_count, likes, created_at, keywords FROM videos ORDER BY id")
+            db_videos = cur.fetchall()
+
         for vid_row in db_videos:
             video_dict = {
                 'db_id': vid_row['id'], 
@@ -106,10 +189,23 @@ def load_data():
                 'created_at': vid_row['created_at'],
                 'keywords': vid_row['keywords'] if vid_row['keywords'] is not None else '', # Ensure keywords is a string
                 'category_keys': [], 
-                'problems': [] 
+                'problems': [],
+                'site_keys': []  # populated if video_site_assignments exists
             }
             all_videos_list.append(video_dict)
             videos_by_db_id[vid_row['id']] = video_dict
+
+        # 2b. Attach site assignments to videos (useful for admin display/edit)
+        if site_assignments_enabled and videos_by_db_id:
+            cur.execute("SELECT video_db_id, site_key FROM video_site_assignments")
+            for row in cur.fetchall():
+                video_db_id = row['video_db_id']
+                if video_db_id in videos_by_db_id:
+                    videos_by_db_id[video_db_id]['site_keys'].append(row['site_key'])
+        else:
+            # Back-compat default: treat existing content as VESPA-visible
+            for v in all_videos_list:
+                v['site_keys'] = ['vespa']
 
         # 3. Fetch Video-Category Assignments and Link them
         cur.execute("SELECT video_db_id, category_db_key FROM video_category_assignments")
@@ -303,7 +399,8 @@ def login_required(f):
 def index():
     message = request.args.get('message')
     error = request.args.get('error')
-    vespa_categories_data, all_videos_data = load_data()
+    site_ctx = get_site_context_from_request()
+    vespa_categories_data, all_videos_data = load_data(site_key=site_ctx.get("site_key"))
     all_problems_for_filter = get_all_problems() # Fetch all problems
     
     featured_video = None
@@ -351,8 +448,10 @@ def index():
     # Load featured series data
     featured_series_info, featured_series_top_videos, featured_series_all_videos = load_featured_series_data()
 
+    template_name = 'csc_index.html' if site_ctx.get("site_key") == "csc" else 'index.html'
+
     return render_template(
-        'index.html', 
+        template_name, 
         message=message, 
         error=error, 
         featured_video=featured_video, # This is the old daily featured video, consider removing or repurposing
@@ -364,18 +463,20 @@ def index():
         featured_series_top_videos=featured_series_top_videos,
         featured_series_all_videos=featured_series_all_videos, # Pass all series videos
         all_problems=all_problems_for_filter, # Pass problems to template
-        current_year=datetime.date.today().year
+        current_year=datetime.date.today().year,
+        **site_ctx
     )
 
 @app.route('/search')
 def search():
     query = request.args.get('query', '').strip()
     problem_query_val = request.args.get('problem_query', '').strip()
+    site_ctx = get_site_context_from_request()
 
     if not query and problem_query_val:
         query = problem_query_val
         
-    categories_data, all_videos_data = load_data()
+    categories_data, all_videos_data = load_data(site_key=site_ctx.get("site_key"))
     all_problems_for_filter = get_all_problems() # Fetch problems for the modal
     
     search_results = []
@@ -415,7 +516,8 @@ def search():
                            query=query,
                            results=search_results,
                            all_problems=all_problems_for_filter, # Pass problems to template
-                           current_year=datetime.date.today().year)
+                           current_year=datetime.date.today().year,
+                           **site_ctx)
 
 @app.route('/submit', methods=['POST'])
 def submit_form():
@@ -488,7 +590,8 @@ def admin_dashboard():
         vespa_categories=vespa_categories_from_db,
         supported_platforms=SUPPORTED_PLATFORMS,
         all_series=all_series_for_dashboard,
-        all_problems=all_problems_for_filter # Pass problems
+        all_problems=all_problems_for_filter, # Pass problems
+        available_sites=AVAILABLE_SITES
     )
 
 @app.route('/admin/add_video', methods=['POST'])
@@ -501,6 +604,7 @@ def add_video():
     category_keys_from_form = request.form.getlist('category_keys')
     series_ids_from_form = request.form.getlist('series_ids')
     problem_ids_from_form = request.form.getlist('problem_ids') # Get selected problem IDs
+    site_keys_from_form = request.form.getlist('site_keys')
 
     if not all([video_id_on_platform, title, platform]):
         flash('Video ID, Platform, and Title are required.', 'danger')
@@ -517,6 +621,8 @@ def add_video():
     try:
         conn = get_db_connection()
         cur = conn.cursor()
+        cur_for_checks = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        site_assignments_enabled = _video_site_assignments_enabled(cur_for_checks)
 
         # Check if video already exists
         cur.execute(
@@ -563,6 +669,24 @@ def add_video():
                     except ValueError:
                         flash(f"Warning: Invalid series ID '{series_id_str}' provided for existing video.", "warning")
             # If series_ids_from_form is empty, existing series are preserved.
+
+            # Handle Site Assignments for Existing Video
+            if site_assignments_enabled and site_keys_from_form:
+                cur.execute("DELETE FROM video_site_assignments WHERE video_db_id = %s", (video_db_id_to_use,))
+                for site_key in site_keys_from_form:
+                    if site_key not in AVAILABLE_SITES:
+                        continue
+                    try:
+                        cur.execute(
+                            "INSERT INTO video_site_assignments (video_db_id, site_key) VALUES (%s, %s)",
+                            (video_db_id_to_use, site_key)
+                        )
+                    except psycopg2.errors.ForeignKeyViolation:
+                        flash(f"Warning: Could not assign site '{site_key}' to video '{title}'. Site might not exist in DB.", "warning")
+                    except psycopg2.errors.UniqueViolation:
+                        pass
+            elif (not site_assignments_enabled) and site_keys_from_form:
+                flash("Warning: Site visibility table not found in DB. Run the migration to enable CSC/VESPA visibility.", "warning")
 
         else: # Video does not exist, create it new
             cur.execute(
@@ -621,6 +745,24 @@ def add_video():
                     except ValueError:
                         flash(f"Warning: Invalid problem ID '{problem_id_str}' provided for new video.", "warning")
 
+            # Add site assignments for new video
+            if site_assignments_enabled and video_db_id_to_use:
+                effective_site_keys = site_keys_from_form or ['vespa']
+                for site_key in effective_site_keys:
+                    if site_key not in AVAILABLE_SITES:
+                        continue
+                    try:
+                        cur.execute(
+                            "INSERT INTO video_site_assignments (video_db_id, site_key) VALUES (%s, %s)",
+                            (video_db_id_to_use, site_key)
+                        )
+                    except psycopg2.errors.ForeignKeyViolation:
+                        flash(f"Warning: Could not assign site '{site_key}' to new video '{title}'. Site might not exist in DB.", "warning")
+                    except psycopg2.errors.UniqueViolation:
+                        pass
+            elif (not site_assignments_enabled) and (site_keys_from_form and video_db_id_to_use):
+                flash("Warning: Site visibility table not found in DB. Run the migration to enable CSC/VESPA visibility.", "warning")
+
         conn.commit()
         if was_existing_video:
             flash(f'Assignments for existing video \'{title}\' updated successfully!', 'success')
@@ -635,6 +777,8 @@ def add_video():
     finally:
         if cur:
             cur.close()
+        if 'cur_for_checks' in locals() and cur_for_checks:
+            cur_for_checks.close()
         if conn:
             conn.close()
     
@@ -693,10 +837,12 @@ def edit_video(platform, video_id_on_platform_from_url):
     assigned_series_ids = [] 
     all_problems_for_filter = get_all_problems()
     assigned_problem_ids = [] # For problems currently assigned to this video
+    assigned_site_keys = []  # For sites currently assigned to this video
 
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        site_assignments_enabled = _video_site_assignments_enabled(cur)
 
         cur.execute("SELECT id, series_key, name FROM series ORDER BY name")
         all_series_for_form = cur.fetchall()
@@ -736,6 +882,16 @@ def edit_video(platform, video_id_on_platform_from_url):
         assigned_prob_rows = cur.fetchall()
         assigned_problem_ids = [row['problem_id'] for row in assigned_prob_rows]
 
+        # Fetch current site assignments for this video (if table exists)
+        if site_assignments_enabled:
+            cur.execute(
+                "SELECT site_key FROM video_site_assignments WHERE video_db_id = %s",
+                (video_db_id,)
+            )
+            assigned_site_keys = [row['site_key'] for row in cur.fetchall()]
+        else:
+            assigned_site_keys = ['vespa']
+
         cur.execute("SELECT category_key, name FROM categories ORDER BY name")
         all_categories_list = cur.fetchall()
         all_categories_for_template = {row['category_key']: {'name': row['name']} for row in all_categories_list}
@@ -746,6 +902,7 @@ def edit_video(platform, video_id_on_platform_from_url):
             new_category_keys = request.form.getlist('category_keys')
             new_series_ids = request.form.getlist('series_ids')
             new_problem_ids = request.form.getlist('problem_ids') # Get selected problem IDs
+            new_site_keys = request.form.getlist('site_keys')
 
             if not new_title:
                 flash('Title cannot be empty.', 'danger')
@@ -760,7 +917,9 @@ def edit_video(platform, video_id_on_platform_from_url):
                     all_series=all_series_for_form,
                     assigned_series_ids=assigned_series_ids,
                     all_problems=all_problems_for_filter,
-                    assigned_problem_ids=assigned_problem_ids # Pass current problem assignments back
+                    assigned_problem_ids=assigned_problem_ids, # Pass current problem assignments back
+                    available_sites=AVAILABLE_SITES,
+                    assigned_site_keys=assigned_site_keys
                 )
 
             cur.execute(
@@ -813,6 +972,24 @@ def edit_video(platform, video_id_on_platform_from_url):
                     except ValueError:
                         flash(f"Warning: Invalid problem ID '{problem_id_str}' submitted for video '{new_title}'.", "warning")
 
+            # Update site assignments (if supported)
+            if site_assignments_enabled and new_site_keys:
+                cur.execute("DELETE FROM video_site_assignments WHERE video_db_id = %s", (video_db_id,))
+                for site_key in new_site_keys:
+                    if site_key not in AVAILABLE_SITES:
+                        continue
+                    try:
+                        cur.execute(
+                            "INSERT INTO video_site_assignments (video_db_id, site_key) VALUES (%s, %s)",
+                            (video_db_id, site_key)
+                        )
+                    except psycopg2.errors.ForeignKeyViolation:
+                        flash(f"Warning: Could not assign site '{site_key}' to video '{new_title}'. Site may not exist in DB.", "warning")
+                    except psycopg2.errors.UniqueViolation:
+                        pass
+            elif (not site_assignments_enabled) and new_site_keys:
+                flash("Warning: Site visibility table not found in DB. Run the migration to enable CSC/VESPA visibility.", "warning")
+
             conn.commit()
             flash(f'Video \'{new_title}\' updated successfully.', 'success')
             return redirect(url_for('admin_dashboard'))
@@ -839,7 +1016,9 @@ def edit_video(platform, video_id_on_platform_from_url):
         all_series=all_series_for_form,
         assigned_series_ids=assigned_series_ids,
         all_problems=all_problems_for_filter,
-        assigned_problem_ids=assigned_problem_ids # Pass assigned problem IDs to template
+        assigned_problem_ids=assigned_problem_ids, # Pass assigned problem IDs to template
+        available_sites=AVAILABLE_SITES,
+        assigned_site_keys=assigned_site_keys
     )
 
 # Comment out or remove the migrate_data_to_db function if you haven't already

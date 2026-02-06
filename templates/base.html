@@ -33,8 +33,9 @@
         <nav class="navbar navbar-expand-lg navbar-light bg-light sticky-top">
             <div class="container-fluid">
                 <a class="navbar-brand" href="{{ url_for('index') }}">
-                    <img src="https://www.vespa.academy/assets/images/full-trimmed-transparent-customcolor-1-832x947.png" alt="VESPA Logo" style="max-height: 30px; margin-right: 10px;">
-                    VESPA Videos
+                    {% set default_logo = "https://www.vespa.academy/assets/images/full-trimmed-transparent-customcolor-1-832x947.png" %}
+                    <img src="{{ site_logo_url or default_logo }}" alt="{{ site_nav_title or 'VESPA Videos' }} Logo" style="max-height: 30px; margin-right: 10px;">
+                    {{ site_nav_title or 'VESPA Videos' }}
                 </a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavBase" aria-controls="navbarNavBase" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>

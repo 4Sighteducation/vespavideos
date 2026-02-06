@@ -87,6 +87,19 @@
                         </div>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label">Show on Sites</label>
+                        <div class="border p-2 rounded">
+                            {% for site_key, site_name in available_sites.items() %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="site_keys" value="{{ site_key }}" id="site_edit_{{ site_key }}"
+                                           {% if assigned_site_keys and site_key in assigned_site_keys %}checked{% endif %}>
+                                    <label class="form-check-label" for="site_edit_{{ site_key }}">{{ site_name }}</label>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <div class="form-text">For CSC-only commissioned videos, select only “CSC”.</div>
+                    </div>
+                    <div class="mb-3">
                         <label for="problem_ids" class="form-label">Relevant Problems (select multiple if needed)</label>
                         <select multiple class="form-select" id="problem_ids" name="problem_ids" size="8">
                             {# Assuming all_problems is passed to this template, similar to how all_categories and all_series are #}

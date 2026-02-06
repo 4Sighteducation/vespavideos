@@ -1,0 +1,336 @@
+{% extends 'base.html' %}
+
+{% block title %}CSC Video Resources{% endblock %}
+
+{% block head_extra %}
+    <style>
+        {% for cat_key, category in vespa_categories %}
+        .category-header-{{ cat_key|lower }} {
+            border-left: 5px solid {{ category.color }};
+            padding-left: 10px;
+            margin-bottom: 1rem;
+        }
+        .category-header-{{ cat_key|lower }} h2 {
+            color: {{ category.color }};
+        }
+        {% endfor %}
+        .video-embed-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 100%; margin-bottom: 1rem; }
+        .video-embed-container iframe, .video-embed-container .muse-video-player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="container mt-5">
+        <div class="main-page-header bg-primary text-white p-4 p-md-5 mb-5 rounded shadow-sm" style="background-color: #23356f !important;">
+            <div class="text-center">
+                {% if site_header_logo_url %}
+                    <img src="{{ site_header_logo_url }}" alt="Central South Consortium" class="logo mb-3" style="max-height: 80px;">
+                {% else %}
+                    <img src="https://www.vespa.academy/assets/images/full-trimmed-transparent-customcolor-1-832x947.png" alt="VESPA Academy" class="logo mb-3" style="max-height: 80px;">
+                {% endif %}
+                <h1 class="mt-2 display-5">Central South Consortium Videos</h1>
+                <p class="lead mb-0">A curated VESPA-aligned video library for CSC schools in Wales.</p>
+            </div>
+        </div>
+
+        {% if all_videos_data is defined and (all_videos_data|length == 0) %}
+            <div class="alert alert-info">
+                This CSC library is set up, but no videos have been assigned to it yet.
+                Once we apply the “site visibility” migration and tag videos as <strong>CSC</strong> in the admin area, they’ll appear here.
+            </div>
+        {% endif %}
+
+        <section class="text-center mb-5 p-4 bg-light rounded border shadow-sm">
+            <h2 class="mb-3"><i class="bi bi-camera-reels me-2"></i>Browse the library</h2>
+            <p class="lead px-md-5">
+                Use the <strong>Search</strong> button (top right) to find videos by keyword, VESPA theme, or specific learner challenges.
+            </p>
+            <p class="px-md-5 mb-0">
+                Each section shows a few picks first — open “View all videos” to see everything in that category.
+            </p>
+        </section>
+
+        <!-- Category Navigation Buttons -->
+        <section class="category-nav-buttons text-center mb-5">
+            <h3 class="mb-3">Quick Navigation</h3>
+            <div class="btn-group flex-wrap" role="group" aria-label="Category quick navigation">
+                {% set excluded_cats_for_nav = ['marketing_promo'] %}
+                {% for cat_key, category_data in vespa_categories %}
+                    {% if cat_key not in excluded_cats_for_nav and category_data.videos %}
+                        <a href="#{{ cat_key|lower }}"
+                           class="btn m-1"
+                           style="background-color: {{ category_data.color }}; border-color: {{ category_data.color }}; color: white;">
+                           {{ category_data.name }}
+                        </a>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+
+        {# === Fresh New Vids (if present) === #}
+        {% set fresh_vids_key_to_render = 'fresh_new_vids' %}
+        {% for cat_key_loop, category_data_loop in vespa_categories %}
+            {% if cat_key_loop == fresh_vids_key_to_render and category_data_loop.videos %}
+                <section id="{{ cat_key_loop|lower }}" class="vespa-category-section mb-5 p-4 bg-white rounded border shadow-sm">
+                    <div class="category-header-{{ cat_key_loop|lower }}" style="border-left: 5px solid {{ category_data_loop.color }}; padding-left: 10px; margin-bottom: 1rem;">
+                        <h2 style="color: {{ category_data_loop.color }};"><i class="bi {{ category_data_loop.icon }} me-2"></i>{{ category_data_loop.name }}</h2>
+                        {% if category_data_loop.description %}<p class="lead">{{ category_data_loop.description }}</p>{% endif %}
+                    </div>
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                        {% for video in category_data_loop.videos[:3] %}
+                        <div class="col">
+                            <div class="card h-100">
+                                <div class="video-embed-container">
+                                    {% if video.platform == 'muse' %}
+                                        <iframe
+                                            src="https://muse.ai/embed/{{ video.video_id_on_platform }}?cover_play_position=center&autoplay=0&loop=0"
+                                            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
+                                            frameborder="0"
+                                            allowfullscreen
+                                            allow="autoplay; fullscreen">
+                                        </iframe>
+                                    {% elif video.platform == 'youtube' %}
+                                        <iframe src="https://www.youtube.com/embed/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                    {% elif video.platform == 'vimeo' %}
+                                        <iframe src="https://player.vimeo.com/video/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                    {% else %}
+                                        <p class="p-2 text-danger">Cannot display: {{ video.title }} (Unsupported Platform)</p>
+                                    {% endif %}
+                                </div>
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ video.title }}</h5>
+                                    <div class="d-flex justify-content-between align-items-center mt-2">
+                                        <button class="btn btn-outline-danger btn-sm like-button" data-video-id="{{ video.db_id }}">
+                                            <i class="bi bi-heart"></i> Like
+                                        </button>
+                                        <span class="like-count ms-2" id="like-count-{{ cat_key_loop }}-{{ video.db_id }}">{{ video.likes }} like{{ 's' if video.likes != 1 else '' }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    {% if category_data_loop.videos|length > 3 %}
+                    <div class="text-center mt-4 mb-3">
+                        <button type="button" class="btn btn-lg text-white"
+                                style="background-color: {{ category_data_loop.color }}; border-color: {{ category_data_loop.color }};"
+                                data-bs-toggle="modal" data-bs-target="#modal-{{ cat_key_loop }}">
+                            View all videos in {{ category_data_loop.name }}
+                        </button>
+                    </div>
+
+                    <div class="modal fade" id="modal-{{ cat_key_loop }}" tabindex="-1" aria-labelledby="modalLabel-{{ cat_key_loop }}" aria-hidden="true">
+                        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="modalLabel-{{ cat_key_loop }}"><i class="bi {{ category_data_loop.icon }} me-2"></i>{{ category_data_loop.name }} - All Videos</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                                        {% for video in category_data_loop.videos %}
+                                        <div class="col">
+                                            <div class="card h-100">
+                                                <div class="video-embed-container">
+                                                    {% if video.platform == 'muse' %}
+                                                        <iframe
+                                                            src="https://muse.ai/embed/{{ video.video_id_on_platform }}?cover_play_position=center&autoplay=0&loop=0"
+                                                            style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
+                                                            frameborder="0"
+                                                            allowfullscreen
+                                                            allow="autoplay; fullscreen">
+                                                        </iframe>
+                                                    {% elif video.platform == 'youtube' %}
+                                                        <iframe src="https://www.youtube.com/embed/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                                    {% elif video.platform == 'vimeo' %}
+                                                        <iframe src="https://player.vimeo.com/video/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                                    {% else %}
+                                                        <p class="p-2 text-danger">Cannot display: {{ video.title }} (Unsupported Platform)</p>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="card-body">
+                                                    <h5 class="card-title">{{ video.title }}</h5>
+                                                    <div class="d-flex justify-content-between align-items-center mt-2">
+                                                        <button class="btn btn-outline-danger btn-sm like-button" data-video-id="{{ video.db_id }}">
+                                                            <i class="bi bi-heart"></i> Like
+                                                        </button>
+                                                        <span class="like-count ms-2" id="like-count-modal-{{ cat_key_loop }}-{{ video.db_id }}">{{ video.likes }} like{{ 's' if video.likes != 1 else '' }}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </section>
+                <hr class="my-5">
+            {% endif %}
+        {% endfor %}
+
+        <!-- VESPA Categories & Videos -->
+        {% set fresh_vids_key_rendered = 'fresh_new_vids' %}
+        {% for cat_key, category in vespa_categories %}
+            {% if cat_key != fresh_vids_key_rendered and category.videos %}
+            <section id="{{ cat_key|lower }}" class="vespa-category-section mb-5">
+                <div class="category-header-{{ cat_key|lower }}">
+                    <h2><i class="bi {{ category.icon }} me-2"></i>{{ category.name }}</h2>
+                    <p class="lead">{{ category.description }}</p>
+                </div>
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                    {% for video in category.videos[:3] %}
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="video-embed-container">
+                                {% if video.platform == 'muse' %}
+                                    <iframe
+                                        src="https://muse.ai/embed/{{ video.video_id_on_platform }}?cover_play_position=center&autoplay=0&loop=0"
+                                        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
+                                        frameborder="0"
+                                        allowfullscreen
+                                        allow="autoplay; fullscreen">
+                                    </iframe>
+                                {% elif video.platform == 'youtube' %}
+                                    <iframe src="https://www.youtube.com/embed/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                {% elif video.platform == 'vimeo' %}
+                                    <iframe src="https://player.vimeo.com/video/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                {% else %}
+                                    <p class="p-2 text-danger">Cannot display: {{ video.title }} (Unsupported Platform)</p>
+                                {% endif %}
+                            </div>
+                            <div class="card-body">
+                                <h5 class="card-title">{{ video.title }}</h5>
+                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                    <button class="btn btn-outline-danger btn-sm like-button" data-video-id="{{ video.db_id }}">
+                                        <i class="bi bi-heart"></i> Like
+                                    </button>
+                                    <span class="like-count ms-2" id="like-count-{{ cat_key }}-{{ video.db_id }}">{{ video.likes }} like{{ 's' if video.likes != 1 else '' }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% if category.videos|length > 3 %}
+                <div class="text-center mt-4 mb-3">
+                    <button type="button" class="btn btn-lg text-white"
+                            style="background-color: {{ category.color }}; border-color: {{ category.color }};"
+                            data-bs-toggle="modal" data-bs-target="#modal-{{ cat_key }}">
+                        View all videos in {{ category.name }}
+                    </button>
+                </div>
+
+                <div class="modal fade" id="modal-{{ cat_key }}" tabindex="-1" aria-labelledby="modalLabel-{{ cat_key }}" aria-hidden="true">
+                    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="modalLabel-{{ cat_key }}"><i class="bi {{ category.icon }} me-2"></i>{{ category.name }} - All Videos</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                                    {% for video in category.videos %}
+                                    <div class="col">
+                                        <div class="card h-100">
+                                            <div class="video-embed-container">
+                                                {% if video.platform == 'muse' %}
+                                                    <iframe
+                                                        src="https://muse.ai/embed/{{ video.video_id_on_platform }}?cover_play_position=center&autoplay=0&loop=0"
+                                                        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"
+                                                        frameborder="0"
+                                                        allowfullscreen
+                                                        allow="autoplay; fullscreen">
+                                                    </iframe>
+                                                {% elif video.platform == 'youtube' %}
+                                                    <iframe src="https://www.youtube.com/embed/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                                {% elif video.platform == 'vimeo' %}
+                                                    <iframe src="https://player.vimeo.com/video/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                                                {% else %}
+                                                    <p class="p-2 text-danger">Cannot display: {{ video.title }} (Unsupported Platform)</p>
+                                                {% endif %}
+                                            </div>
+                                            <div class="card-body">
+                                                <h5 class="card-title">{{ video.title }}</h5>
+                                                <div class="d-flex justify-content-between align-items-center mt-2">
+                                                    <button class="btn btn-outline-danger btn-sm like-button" data-video-id="{{ video.db_id }}">
+                                                        <i class="bi bi-heart"></i> Like
+                                                    </button>
+                                                    <span class="like-count ms-2" id="like-count-modal-{{ cat_key }}-{{ video.db_id }}">{{ video.likes }} like{{ 's' if video.likes != 1 else '' }}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </section>
+            <hr class="my-5">
+            {% endif %}
+        {% endfor %}
+    </div>
+{% endblock %}
+
+{% block scripts_extra %}
+    <!-- Like Button Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const likeButtons = document.querySelectorAll('.like-button');
+
+            likeButtons.forEach(button => {
+                button.addEventListener('click', function () {
+                    const videoId = this.dataset.videoId;
+                    let likeCountSpans = document.querySelectorAll(`[id^='like-count-'][id$='-${videoId}'], [id='like-count-${videoId}']`);
+                    const icon = this.querySelector('i');
+
+                    this.disabled = true;
+                    icon.classList.remove('bi-heart');
+                    icon.classList.add('bi-heart-fill');
+
+                    fetch(`/like_video/${videoId}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            likeCountSpans.forEach(span => {
+                                span.textContent = `${data.new_like_count} like${data.new_like_count !== 1 ? 's' : ''}`;
+                            });
+                            icon.classList.add('bi-heart-fill');
+                            icon.classList.remove('bi-heart');
+                        } else {
+                            console.error('Error liking video:', data.error);
+                            alert('Could not like video: ' + data.error);
+                            icon.classList.remove('bi-heart-fill');
+                            icon.classList.add('bi-heart');
+                            this.disabled = false;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Network error liking video:', error);
+                        alert('Network error. Could not like video.');
+                        icon.classList.remove('bi-heart-fill');
+                        icon.classList.add('bi-heart');
+                        this.disabled = false;
+                    });
+                });
+            });
+        });
+    </script>
+{% endblock %}
+

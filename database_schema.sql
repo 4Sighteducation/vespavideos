@@ -76,3 +76,41 @@ ADD CONSTRAINT video_series_assignments_series_db_id_fkey -- <<< Use the same or
 FOREIGN KEY (series_db_id)
 REFERENCES series(id)
 ON DELETE CASCADE;
+
+-- ============================================================
+-- Multi-site video visibility (VESPA vs CSC sister site)
+-- ============================================================
+-- Goal: allow one shared database to power multiple public sites (e.g. videos.vespa.academy and cscvideos.vespa.academy)
+-- without duplicating videos or standing up a separate app/DB.
+--
+-- Migration notes:
+-- 1) Run the CREATE TABLE statements below in Supabase (SQL editor).
+-- 2) Insert the two default sites (vespa, csc).
+-- 3) Assign EXISTING videos to 'vespa' (so current site behaviour remains unchanged).
+-- 4) For CSC-only commissioned videos, assign ONLY to 'csc' (and do NOT assign to 'vespa').
+
+CREATE TABLE IF NOT EXISTS sites (
+    site_key TEXT PRIMARY KEY,  -- e.g. 'vespa', 'csc'
+    name TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS video_site_assignments (
+    video_db_id INTEGER NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+    site_key TEXT NOT NULL REFERENCES sites(site_key) ON DELETE CASCADE,
+    PRIMARY KEY (video_db_id, site_key)
+);
+
+-- Seed default sites
+INSERT INTO sites (site_key, name)
+VALUES ('vespa', 'VESPA Videos')
+ON CONFLICT (site_key) DO NOTHING;
+
+INSERT INTO sites (site_key, name)
+VALUES ('csc', 'Central South Consortium Videos')
+ON CONFLICT (site_key) DO NOTHING;
+
+-- Assign all existing videos to VESPA site by default (keeps current behaviour)
+INSERT INTO video_site_assignments (video_db_id, site_key)
+SELECT v.id, 'vespa'
+FROM videos v
+ON CONFLICT DO NOTHING;
