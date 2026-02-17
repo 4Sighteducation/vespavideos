@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash, send_from_directory
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for, flash, send_from_directory, abort
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 from dotenv import load_dotenv
@@ -78,8 +78,14 @@ def csc_logo():
     Serves the CSC logo committed in the repo root.
     (This avoids needing a separate asset host just for the logo.)
     """
-    filename = "CSC Logo RGB.jpg"
-    return send_from_directory(app.root_path, filename, max_age=60 * 60 * 24 * 7)
+    candidates = [
+        "CSC Logo colour no JES.png",
+        "CSC Logo RGB.jpg",
+    ]
+    for filename in candidates:
+        if os.path.exists(os.path.join(app.root_path, filename)):
+            return send_from_directory(app.root_path, filename, max_age=60 * 60 * 24 * 7)
+    abort(404)
 
 def _video_site_assignments_enabled(cur) -> bool:
     """
